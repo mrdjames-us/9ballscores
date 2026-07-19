@@ -1,0 +1,1146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>APA 9-Ball Scorer</title>
+<style>
+  :root {
+    --felt: #0e5c3a;
+    --felt-dark: #0a4229;
+    --cream: #f5f0e6;
+    --gold: #d4a942;
+    --red: #c0392b;
+    --card: #ffffff;
+    --ink: #1c2833;
+    --muted: #6b7a86;
+    --line: #e5e8ea;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: "Segoe UI", system-ui, sans-serif;
+    background: linear-gradient(160deg, var(--felt-dark), var(--felt) 60%, var(--felt-dark));
+    min-height: 100vh;
+    color: var(--ink);
+    padding: 16px;
+  }
+  .wrap { max-width: 960px; margin: 0 auto; }
+  header { text-align: center; color: var(--cream); margin-bottom: 12px; }
+  header h1 { font-size: 1.5rem; letter-spacing: 2px; text-transform: uppercase; }
+  header .sub { color: var(--gold); font-size: .85rem; letter-spacing: 1px; }
+
+  .tabs { display: flex; gap: 6px; margin-bottom: 14px; justify-content: center; }
+  .tabs button {
+    background: rgba(255,255,255,.12); color: var(--cream);
+    border: 1px solid rgba(255,255,255,.25);
+    padding: 8px 22px; border-radius: 20px; font-weight: 600; cursor: pointer;
+  }
+  .tabs button.on { background: var(--gold); color: #3a2c00; border-color: var(--gold); }
+
+  .panel {
+    background: var(--card); border-radius: 12px; padding: 20px;
+    box-shadow: 0 8px 24px rgba(0,0,0,.35); margin-bottom: 16px;
+  }
+  button { cursor: pointer; border: none; border-radius: 8px; font-size: 1rem; font-weight: 600; padding: 12px 18px; transition: transform .05s, filter .15s; }
+  button:active { transform: scale(.97); }
+  button:hover { filter: brightness(1.08); }
+  .btn-primary { background: var(--felt); color: #fff; width: 100%; font-size: 1.1rem; }
+  .btn-gold { background: var(--gold); color: #3a2c00; }
+  .btn-gray { background: #dfe4e6; color: var(--ink); }
+  .btn-red { background: var(--red); color: #fff; }
+  .btn-outline { background: #fff; border: 2px solid var(--felt); color: var(--felt); }
+
+  /* setup */
+  .setup-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 12px; margin-bottom: 12px; }
+  .setup-grid label { font-weight: 600; font-size: .85rem; display: block; margin-bottom: 4px; }
+  .setup-grid input, .setup-grid select, .setup-wide select {
+    width: 100%; padding: 10px; border: 2px solid #d5dbdb; border-radius: 8px; font-size: 1rem; background: #fff;
+  }
+  .setup-wide { margin-bottom: 12px; }
+  .setup-wide label { font-weight: 600; font-size: .85rem; display: block; margin-bottom: 4px; }
+  .goal-note { font-size: .78rem; color: var(--muted); margin-top: 3px; }
+  .rookie-note { font-size: .78rem; color: var(--muted); margin: 8px 0 12px; }
+
+  /* players */
+  .players { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+  .player-card {
+    background: var(--card); border-radius: 12px; padding: 14px; text-align: center;
+    box-shadow: 0 8px 24px rgba(0,0,0,.35); border-top: 6px solid var(--muted);
+    opacity: .75; transition: opacity .2s, border-color .2s; position: relative;
+  }
+  .player-card.active { opacity: 1; border-top-color: var(--gold); }
+  .player-card .turn-tag {
+    display: none; position: absolute; top: 8px; right: 8px;
+    background: var(--gold); color: #3a2c00; font-size: .62rem; font-weight: 700;
+    padding: 2px 8px; border-radius: 20px; letter-spacing: 1px;
+  }
+  .player-card.active .turn-tag { display: block; }
+  .player-card .break-tag {
+    display: none; position: absolute; top: 8px; left: 8px;
+    background: var(--felt); color: #fff; font-size: .62rem; font-weight: 700;
+    padding: 2px 8px; border-radius: 20px; letter-spacing: 1px;
+  }
+  .player-card.breaker .break-tag { display: block; }
+  .player-name { font-size: 1.05rem; font-weight: 700; word-break: break-word; }
+  .player-sl { font-size: .75rem; color: var(--muted); margin-bottom: 4px; }
+  .player-score { font-size: 5.8rem; font-weight: 800; line-height: 1.05; }
+  .player-goal { font-size: .8rem; color: var(--muted); margin-bottom: 6px; }
+  .bar { height: 8px; background: #edf0f2; border-radius: 6px; overflow: hidden; margin-bottom: 8px; }
+  .bar i { display: block; height: 100%; background: linear-gradient(90deg, var(--felt), var(--gold)); border-radius: 6px; transition: width .25s; }
+  .player-stats { display: flex; justify-content: center; gap: 12px; font-size: .74rem; color: var(--muted); flex-wrap: wrap; }
+  .player-stats b { color: var(--ink); }
+
+  /* table / rack */
+  .table-area { background: var(--card); border-radius: 12px; padding: 16px; box-shadow: 0 8px 24px rgba(0,0,0,.35); margin-bottom: 12px; text-align: center; }
+  .run-line { font-size: .88rem; color: var(--muted); margin-bottom: 10px; }
+  .run-line b { color: var(--ink); font-size: 1.05rem; }
+  .rack { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-bottom: 8px; }
+  .ball {
+    width: 52px; height: 52px; border-radius: 50%;
+    color: #fff; font-weight: 800; font-size: 1.15rem;
+    display: flex; align-items: center; justify-content: center;
+    border: none; cursor: pointer; box-shadow: 0 3px 6px rgba(0,0,0,.35);
+    position: relative;
+  }
+  .ball span {
+    background: #fff; color: #1c1c1c; border-radius: 50%;
+    width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;
+    font-size: .85rem;
+  }
+  .ball.gone { filter: grayscale(1) brightness(1.5); opacity: .35; cursor: default; box-shadow: none; }
+  .ball.dead-marked { outline: 3px dashed var(--red); outline-offset: 2px; }
+  .rack-note { font-size: .78rem; color: var(--muted); margin-bottom: 12px; }
+  .dead-on-note { color: var(--red); font-weight: 700; }
+
+  .runs-box { border-top: 1px solid var(--line); margin-top: 12px; padding-top: 10px; text-align: left; }
+  .runs-title { font-size: .78rem; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); font-weight: 700; margin-bottom: 6px; }
+  .runs-list { display: flex; gap: 8px; flex-wrap: wrap; }
+  .run-chip { background: #f4f7f6; border: 1px solid var(--line); border-radius: 20px; padding: 5px 12px; font-size: .82rem; display: flex; align-items: center; gap: 6px; }
+  .run-chip .rank { font-weight: 800; color: var(--gold); }
+  .run-chip b { color: var(--ink); }
+  .run-chip .live-tag { color: var(--red); font-weight: 700; font-size: .7rem; }
+
+  .actions { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; }
+  .actions button { padding: 11px 6px; font-size: .9rem; }
+  .actions .hint { display: block; font-weight: 400; font-size: .66rem; opacity: .8; margin-top: 2px; }
+  .actions button.dead-active { background: var(--red); color: #fff; }
+
+  .meta-row { display: flex; justify-content: space-between; align-items: center; margin-top: 12px; flex-wrap: wrap; gap: 8px; }
+  .meta-row .small { font-size: .8rem; color: var(--muted); }
+  .meta-btns { display: flex; gap: 8px; }
+  .meta-btns button { padding: 8px 14px; font-size: .85rem; }
+
+  .log { max-height: 150px; overflow-y: auto; font-size: .8rem; line-height: 1.5; border-top: 1px solid var(--line); margin-top: 12px; padding-top: 8px; text-align: left; }
+  .log div { padding: 1px 0; color: var(--muted); }
+  .log div b { color: var(--ink); }
+
+  .winner-banner {
+    background: var(--gold); color: #3a2c00; border-radius: 12px; text-align: center;
+    padding: 16px; font-size: 1.15rem; font-weight: 800; margin-bottom: 12px;
+    box-shadow: 0 8px 24px rgba(0,0,0,.35); display: none;
+  }
+  .winner-banner .split { font-size: .95rem; font-weight: 600; margin-top: 4px; }
+
+  /* modal */
+  .overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,.55);
+    display: none; align-items: center; justify-content: center; z-index: 50; padding: 16px;
+  }
+  .overlay.show { display: flex; }
+  .modal { background: #fff; border-radius: 14px; padding: 24px; max-width: 420px; width: 100%; text-align: center; box-shadow: 0 20px 60px rgba(0,0,0,.5); }
+  .modal h3 { margin-bottom: 8px; }
+  .modal p { color: var(--muted); font-size: .9rem; margin-bottom: 16px; }
+  .modal .btns { display: grid; gap: 8px; }
+
+  /* history */
+  .hist-empty { color: var(--muted); text-align: center; padding: 24px 0; }
+  table.hist { width: 100%; border-collapse: collapse; font-size: .84rem; }
+  table.hist th, table.hist td { padding: 8px 6px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+  table.hist th { font-size: .72rem; text-transform: uppercase; letter-spacing: .5px; color: var(--muted); }
+  .tag { display: inline-block; background: var(--felt); color: #fff; font-size: .66rem; font-weight: 700; border-radius: 10px; padding: 1px 8px; margin: 1px 2px 1px 0; }
+  .tag.snap { background: var(--red); }
+  .tag.def { background: var(--muted); }
+  .hist-actions { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
+  .hist-actions button { padding: 9px 14px; font-size: .85rem; }
+  h2.sec { font-size: 1rem; text-transform: uppercase; letter-spacing: 1px; color: var(--felt); margin: 4px 0 12px; }
+  .career-wrap { overflow-x: auto; }
+
+  /* rules */
+  .rules-body { line-height: 1.6; font-size: .92rem; }
+  .rules-body h3 { margin: 18px 0 6px; font-size: .95rem; color: var(--felt); text-transform: uppercase; letter-spacing: 1px; }
+  .rules-body ul { padding-left: 20px; margin: 4px 0; }
+  .rules-body li { margin-bottom: 4px; }
+  .rules-body .penalty { color: var(--red); font-weight: 700; }
+  .chart-wrap { overflow-x: auto; margin: 8px 0; }
+  table.chart { border-collapse: collapse; font-size: .8rem; width: 100%; }
+  table.chart th, table.chart td { border: 1px solid #cfd8dc; padding: 5px 7px; text-align: center; white-space: nowrap; }
+  table.chart th { background: var(--felt); color: #fff; font-weight: 600; }
+  table.chart tr:nth-child(even) td { background: #f4f7f6; }
+  table.chart td:first-child { font-weight: 700; background: var(--gold); color: #3a2c00; }
+
+  .hidden { display: none !important; }
+
+  @media (max-width: 560px) {
+    .player-score { font-size: 4.4rem; }
+    .ball { width: 44px; height: 44px; font-size: 1rem; }
+    .ball span { width: 20px; height: 20px; font-size: .75rem; }
+    .setup-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>APA 9-Ball Scorer</h1>
+    <div class="sub">The Equalizer&reg; format &bull; points &bull; defenses &bull; history</div>
+  </header>
+
+  <div class="tabs">
+    <button id="tabScore" class="on">Score</button>
+    <button id="tabPlayers">Players</button>
+    <button id="tabHistory">History</button>
+    <button id="tabRules">Rules</button>
+  </div>
+
+  <!-- ================= SCORE VIEW ================= -->
+  <div id="viewScore">
+
+    <!-- setup -->
+    <div class="panel" id="setupPanel">
+      <div class="setup-grid">
+        <div>
+          <label for="p1profile">Player 1 (shoots first — won the lag)</label>
+          <select id="p1profile"></select>
+          <input id="p1name" type="text" placeholder="Player 1" maxlength="20" style="margin-top:6px;">
+        </div>
+        <div>
+          <label for="p1sl">Skill Level</label>
+          <select id="p1sl"></select>
+          <div class="goal-note" id="p1goal"></div>
+        </div>
+        <div>
+          <label for="p2profile">Player 2</label>
+          <select id="p2profile"></select>
+          <input id="p2name" type="text" placeholder="Player 2" maxlength="20" style="margin-top:6px;">
+        </div>
+        <div>
+          <label for="p2sl">Skill Level</label>
+          <select id="p2sl"></select>
+          <div class="goal-note" id="p2goal"></div>
+        </div>
+      </div>
+      <div class="rookie-note">New players: males start SL-4 (31 pts), females SL-2 (19 pts). Established 8-ball players start at their 8-ball rating.</div>
+      <button class="btn-primary" id="startBtn">Lag Won — Start Match</button>
+    </div>
+
+    <!-- game -->
+    <div id="gamePanel" class="hidden">
+      <div class="winner-banner" id="winnerBanner"></div>
+
+      <div class="players">
+        <div class="player-card" id="card0">
+          <span class="turn-tag">SHOOTING</span><span class="break-tag">BREAKS</span>
+          <div class="player-name" id="name0"></div>
+          <div class="player-sl" id="sl0"></div>
+          <div class="player-score" id="score0">0</div>
+          <div class="player-goal" id="goal0"></div>
+          <div class="bar"><i id="bar0"></i></div>
+          <div class="player-stats">
+            <span>Def <b id="def0">0</b></span>
+            <span>B&amp;R <b id="br0">0</b></span>
+            <span>9-Snap <b id="snap0">0</b></span>
+          </div>
+        </div>
+        <div class="player-card" id="card1">
+          <span class="turn-tag">SHOOTING</span><span class="break-tag">BREAKS</span>
+          <div class="player-name" id="name1"></div>
+          <div class="player-sl" id="sl1"></div>
+          <div class="player-score" id="score1">0</div>
+          <div class="player-goal" id="goal1"></div>
+          <div class="bar"><i id="bar1"></i></div>
+          <div class="player-stats">
+            <span>Def <b id="def1">0</b></span>
+            <span>B&amp;R <b id="br1">0</b></span>
+            <span>9-Snap <b id="snap1">0</b></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="table-area">
+        <div class="run-line">
+          Rack <b id="rackNum">1</b>
+          &nbsp;&bull;&nbsp; Inning <b id="inning">0</b>
+          &nbsp;&bull;&nbsp; Current run <b id="currentRunLabel">0</b>
+          &nbsp;&bull;&nbsp; Dead this match: <b id="deadCount">0</b>
+        </div>
+
+        <div class="rack" id="rackBalls"></div>
+        <div class="rack-note" id="rackNote">Tap a ball as the shooter pockets it. Balls 1&ndash;8 = 1 pt, the 9 = 2 pts.</div>
+
+        <div class="runs-box" id="runsBox" style="display:none;">
+          <div class="runs-title">Longest Runs This Match</div>
+          <div class="runs-list" id="runsList"></div>
+        </div>
+
+        <div class="actions">
+          <button class="btn-gray" id="missBtn">Miss<span class="hint">turn over</span></button>
+          <button class="btn-outline" id="defBtn">Defense<span class="hint">mark it &amp; turn over</span></button>
+          <button class="btn-red" id="foulBtn">Foul / Scratch<span class="hint">ball in hand, turn over</span></button>
+          <button class="btn-gray" id="deadBtn">Dead Ball<span class="hint">then tap the ball(s)</span></button>
+          <button class="btn-gray" id="undoBtn">Undo<span class="hint">take back last</span></button>
+        </div>
+
+        <div class="meta-row">
+          <div class="small" id="raceLine"></div>
+          <div class="meta-btns">
+            <button class="btn-gray" id="newMatchBtn">New Match</button>
+          </div>
+        </div>
+
+        <div class="log" id="log"></div>
+      </div>
+
+      <div id="postMatch" class="hidden" style="display:flex; gap:8px; margin-bottom:16px;">
+        <button class="btn-gold" style="flex:1" id="rematchBtn">Rematch (same players)</button>
+        <button class="btn-gray" style="flex:1" id="setupAgainBtn">New Players</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= PLAYERS VIEW ================= -->
+  <div id="viewPlayers" class="hidden">
+    <div class="panel">
+      <h2 class="sec">Add a Player</h2>
+      <div class="setup-grid" style="margin-bottom:0;">
+        <div>
+          <label for="npName">Name</label>
+          <input id="npName" type="text" placeholder="Player name" maxlength="20">
+        </div>
+        <div>
+          <label for="npSl">Skill Level</label>
+          <select id="npSl"></select>
+        </div>
+      </div>
+      <button class="btn-primary" id="npAddBtn" style="margin-top:12px;">Save Player</button>
+    </div>
+    <div class="panel">
+      <h2 class="sec">Saved Players</h2>
+      <div class="career-wrap" id="profileList"></div>
+      <div class="rookie-note" style="margin:10px 0 0;">Skill level changes here carry into the next match you start. Records come from match history (by name).</div>
+    </div>
+  </div>
+
+  <!-- ================= HISTORY VIEW ================= -->
+  <div id="viewHistory" class="hidden">
+    <div class="panel">
+      <h2 class="sec">Career Stats</h2>
+      <div class="career-wrap" id="careerStats"></div>
+    </div>
+    <div class="panel">
+      <h2 class="sec">Match History</h2>
+      <div id="histList"></div>
+      <div class="hist-actions">
+        <button class="btn-outline" id="exportBtn">Export JSON</button>
+        <button class="btn-red" id="clearHistBtn">Clear History</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= RULES VIEW ================= -->
+  <div id="viewRules" class="hidden">
+    <div class="panel rules-body">
+      <h3>The Game</h3>
+      <ul>
+        <li>9-Ball is played with balls 1&ndash;9. The cue ball must contact the <strong>lowest-numbered ball on the table first</strong>, but balls may be pocketed in any order off a legal hit (combos, caroms, kisses all count).</li>
+        <li><strong>Nothing is called</strong> in APA 9-Ball — any ball that drops on a legal stroke counts, slop included.</li>
+        <li>Winner of the lag shoots first. The <strong>winner of each rack breaks the next one</strong>.</li>
+        <li>There is <strong>no push-out</strong> and <strong>no three-foul rule</strong> in APA play.</li>
+      </ul>
+
+      <h3>Scoring — It&rsquo;s a Points Game</h3>
+      <ul>
+        <li>Balls 1&ndash;8 are worth <strong>1 point</strong> each; the 9-ball is worth <strong>2 points</strong> — 10 points in every rack.</li>
+        <li>You win the match by reaching <strong>your Points Required to Win</strong> (based on skill level, chart below) before your opponent reaches theirs.</li>
+        <li>Pocketing the 9 ends the rack; any balls still on the table are <strong>dead</strong> (no one scores them).</li>
+      </ul>
+      <div class="chart-wrap">
+        <table class="chart">
+          <tr><th>Skill Level</th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th><th>6</th><th>7</th><th>8</th><th>9</th></tr>
+          <tr><td>Points to Win</td><td>14</td><td>19</td><td>25</td><td>31</td><td>38</td><td>46</td><td>55</td><td>65</td><td>75</td></tr>
+        </table>
+      </div>
+
+      <h3>Fouls — Ball in Hand</h3>
+      <ul>
+        <li>Scratching, failing to hit the lowest ball first, no rail after contact, and other standard fouls give the opponent <strong>cue ball in hand anywhere</strong>.</li>
+        <li>Balls pocketed on a foul stroke are <strong>dead</strong> — they stay down but score for no one. Exception: a <strong>9-ball pocketed on a foul is spotted</strong>.</li>
+        <li>There is no point penalty for a foul — the penalty is ball in hand.</li>
+      </ul>
+
+      <h3>Dead Balls</h3>
+      <ul>
+        <li>Dead balls are balls credited to <strong>neither player</strong>: balls made on a scratch or foul, and balls left on the table when the 9 is made.</li>
+        <li>Mark them as you go — every ball in every rack must be accounted for (10 points per rack, scored or dead).</li>
+      </ul>
+
+      <h3>Innings &amp; Defensive Shots</h3>
+      <ul>
+        <li>An <strong>inning</strong> is one turn for each player. It's complete when the player who shoots <em>second</em> (lag loser) misses or fouls.</li>
+        <li>A <strong>defensive shot</strong> is any shot with <strong>no intent to legally pocket a ball</strong>. It still ends the turn and counts in the inning — but it must be marked on the scoresheet. Accurate defense counts keep handicaps honest.</li>
+      </ul>
+
+      <h3>Break, Break-and-Run, 9 on the Snap</h3>
+      <ul>
+        <li>The break must be an open break. Balls made on a legal break count for the breaker and the breaker keeps shooting.</li>
+        <li><strong>9 on the Snap:</strong> pocketing the 9 on the break stroke wins the rack instantly (2 pts + any other balls that fell).</li>
+        <li><strong>Break and Run:</strong> breaking and clearing the entire rack without the opponent ever getting to the table.</li>
+        <li>Both are tracked separately on the scoresheet (and in this app) — no innings are charged on those racks.</li>
+      </ul>
+
+      <h3>Score of Match — 20 Match Points</h3>
+      <p>Every match splits <strong>20 match points</strong> between the two players. Find the <strong>loser&rsquo;s skill level</strong> row, then the range containing the <strong>loser&rsquo;s points earned</strong> — that column is the final split (winner&ndash;loser).</p>
+      <div class="chart-wrap">
+        <table class="chart">
+          <tr><th>Loser&rsquo;s SL</th><th>20-0</th><th>19-1</th><th>18-2</th><th>17-3</th><th>16-4</th><th>15-5</th><th>14-6</th><th>13-7</th><th>12-8</th></tr>
+          <tr><td>1</td><td>&lt;3</td><td>3</td><td>4</td><td>5-6</td><td>7</td><td>8</td><td>9-10</td><td>11</td><td>12-13</td></tr>
+          <tr><td>2</td><td>&lt;4</td><td>4-5</td><td>6-7</td><td>8</td><td>9-10</td><td>11-12</td><td>13-14</td><td>15-16</td><td>17-18</td></tr>
+          <tr><td>3</td><td>&lt;5</td><td>5-6</td><td>7-9</td><td>10-11</td><td>12-14</td><td>15-16</td><td>17-19</td><td>20-21</td><td>22-24</td></tr>
+          <tr><td>4</td><td>&lt;6</td><td>6-8</td><td>9-11</td><td>12-14</td><td>15-18</td><td>19-21</td><td>22-24</td><td>25-27</td><td>28-30</td></tr>
+          <tr><td>5</td><td>&lt;7</td><td>7-10</td><td>11-14</td><td>15-18</td><td>19-22</td><td>23-26</td><td>27-29</td><td>30-33</td><td>34-37</td></tr>
+          <tr><td>6</td><td>&lt;9</td><td>9-12</td><td>13-17</td><td>18-22</td><td>23-27</td><td>28-31</td><td>32-36</td><td>37-40</td><td>41-45</td></tr>
+          <tr><td>7</td><td>&lt;11</td><td>11-15</td><td>16-21</td><td>22-26</td><td>27-32</td><td>33-37</td><td>38-43</td><td>44-49</td><td>50-54</td></tr>
+          <tr><td>8</td><td>&lt;14</td><td>14-19</td><td>20-26</td><td>27-32</td><td>33-39</td><td>40-45</td><td>46-52</td><td>53-58</td><td>59-64</td></tr>
+          <tr><td>9</td><td>&lt;18</td><td>18-24</td><td>25-31</td><td>32-38</td><td>39-46</td><td>47-53</td><td>54-60</td><td>61-67</td><td>68-74</td></tr>
+        </table>
+      </div>
+
+      <p style="margin-top:12px;color:var(--muted);font-size:.8rem;">Summary of the APA/CPA 9-Ball Equalizer&reg; format per the official APA scoresheet and rules.poolplayers.com. Local league operators&rsquo; rulings prevail.</p>
+    </div>
+  </div>
+</div>
+
+<!-- snap / B&R modal -->
+<div class="overlay" id="nineOverlay">
+  <div class="modal">
+    <h3>💥 Rack over — clean sweep!</h3>
+    <p id="nineText">The opponent never got to the table this rack. Was the 9 pocketed on the break stroke itself?</p>
+    <div class="btns">
+      <button class="btn-red" id="snapYes">9 on the Snap (on the break)</button>
+      <button class="btn-gold" id="snapNo">Break &amp; Run (ran the rack)</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var STATE_KEY = "apa9StateV1";
+  var HIST_KEY = "apa9HistoryV1";
+  var PROF_KEY = "apa9ProfilesV1";
+
+  var GOALS = {1:14, 2:19, 3:25, 4:31, 5:38, 6:46, 7:55, 8:65, 9:75};
+  // Score of Match chart: for the loser's SL, lower bound of points earned
+  // for the loser to receive 1..8 match points (official APA scoresheet).
+  var CHART = {
+    1: [3, 4, 5, 7, 8, 9, 11, 12],
+    2: [4, 6, 8, 9, 11, 13, 15, 17],
+    3: [5, 7, 10, 12, 15, 17, 20, 22],
+    4: [6, 9, 12, 15, 19, 22, 25, 28],
+    5: [7, 11, 15, 19, 23, 27, 30, 34],
+    6: [9, 13, 18, 23, 28, 32, 37, 41],
+    7: [11, 16, 22, 27, 33, 38, 44, 50],
+    8: [14, 20, 27, 33, 40, 46, 53, 59],
+    9: [18, 25, 32, 39, 47, 54, 61, 68]
+  };
+  var BALL_COLORS = {
+    1: "#f1c40f", 2: "#2465c9", 3: "#d62c1a", 4: "#7d3c98", 5: "#e67e22",
+    6: "#1e8449", 7: "#7b241c", 8: "#1c1c1c", 9: "#f1c40f"
+  };
+
+  var state = null;
+  var history = [];        // undo snapshots
+  var pendingNine = null;  // callback context while snap/B&R modal is open
+
+  function $(id) { return document.getElementById(id); }
+
+  function loserMatchPoints(sl, pts) {
+    var bounds = CHART[sl], n = 0;
+    for (var i = 0; i < bounds.length; i++) if (pts >= bounds[i]) n = i + 1;
+    return n;
+  }
+
+  function freshBalls() {
+    var b = {};
+    for (var i = 1; i <= 9; i++) b[i] = "table";
+    return b;
+  }
+
+  function defaultState(names, sls) {
+    return {
+      names: names,
+      sls: sls,
+      goals: [GOALS[sls[0]], GOALS[sls[1]]],
+      scores: [0, 0],
+      defenses: [0, 0],
+      brs: [0, 0],
+      snaps: [0, 0],
+      deadTotal: 0,
+      innings: 0,
+      runs: [[], []],         // completed run lengths (balls in a row) per player
+      currentRun: 0,          // balls made in a row by the player currently shooting
+      current: 0,            // player 0 won the lag, shoots first
+      breaker: 0,            // rack breaker (winner of previous rack)
+      opponentShot: false,   // has the non-breaker taken a shot this rack?
+      balls: freshBalls(),
+      rackNum: 1,
+      deadMode: false,
+      winner: null,
+      matchPts: null,        // [p0 pts, p1 pts] once decided
+      startedAt: new Date().toISOString(),
+      log: []
+    };
+  }
+
+  function snapshot() {
+    history.push(JSON.stringify(state));
+    if (history.length > 300) history.shift();
+  }
+
+  function save() {
+    try { localStorage.setItem(STATE_KEY, JSON.stringify({ state: state, history: history.slice(-60) })); } catch (e) {}
+  }
+
+  function addLog(msg) {
+    state.log.unshift(msg);
+    if (state.log.length > 120) state.log.pop();
+  }
+
+  function pname(i) { return state.names[i]; }
+
+  // ---------------- rendering ----------------
+  function render() {
+    if (!state) return;
+
+    for (var i = 0; i < 2; i++) {
+      $("name" + i).textContent = state.names[i];
+      $("sl" + i).textContent = "SL-" + state.sls[i];
+      $("score" + i).textContent = state.scores[i];
+      $("goal" + i).textContent = "needs " + Math.max(0, state.goals[i] - state.scores[i]) + " of " + state.goals[i];
+      $("bar" + i).style.width = Math.min(100, state.scores[i] / state.goals[i] * 100) + "%";
+      $("def" + i).textContent = state.defenses[i];
+      $("br" + i).textContent = state.brs[i];
+      $("snap" + i).textContent = state.snaps[i];
+      $("card" + i).classList.toggle("active", state.current === i && state.winner === null);
+      $("card" + i).classList.toggle("breaker", state.breaker === i && state.winner === null);
+    }
+
+    $("rackNum").textContent = state.rackNum;
+    $("inning").textContent = state.innings;
+    $("currentRunLabel").textContent = state.currentRun;
+    $("deadCount").textContent = state.deadTotal;
+
+    var topRuns = getTopRuns(state);
+    var runsBox = $("runsBox");
+    if (topRuns.length) {
+      runsBox.style.display = "block";
+      var medals = ["🥇", "🥈", "🥉"];
+      $("runsList").innerHTML = topRuns.map(function (r, idx) {
+        return '<div class="run-chip"><span class="rank">' + medals[idx] + '</span> <b>' + pname(r.p) + "</b> — " +
+          r.len + " ball" + (r.len === 1 ? "" : "s") + (r.live ? ' <span class="live-tag">LIVE</span>' : "") + "</div>";
+      }).join("");
+    } else {
+      runsBox.style.display = "none";
+    }
+    $("raceLine").innerHTML = state.names[0] + " (SL-" + state.sls[0] + ") races to <b>" + state.goals[0] +
+      "</b> &nbsp;vs&nbsp; " + state.names[1] + " (SL-" + state.sls[1] + ") races to <b>" + state.goals[1] + "</b>";
+
+    // rack
+    var rack = $("rackBalls");
+    rack.innerHTML = "";
+    for (var b = 1; b <= 9; b++) {
+      var btn = document.createElement("button");
+      btn.className = "ball";
+      btn.style.background = b === 9
+        ? "linear-gradient(180deg, #fff 0 22%, " + BALL_COLORS[9] + " 22% 78%, #fff 78% 100%)"
+        : "radial-gradient(circle at 32% 28%, rgba(255,255,255,.55), " + BALL_COLORS[b] + " 45%)";
+      var num = document.createElement("span");
+      num.textContent = b;
+      btn.appendChild(num);
+      if (state.balls[b] !== "table") {
+        btn.classList.add("gone");
+        if (state.balls[b] === "dead") btn.classList.add("dead-marked");
+        btn.disabled = true;
+      } else {
+        btn.dataset.ball = b;
+        btn.addEventListener("click", onBallTap);
+      }
+      rack.appendChild(btn);
+    }
+
+    $("deadBtn").classList.toggle("dead-active", state.deadMode);
+    $("rackNote").innerHTML = state.deadMode
+      ? '<span class="dead-on-note">DEAD BALL MODE — tap the ball(s) made on the foul, then tap Dead Ball again.</span>'
+      : "Tap a ball as the shooter pockets it. Balls 1&ndash;8 = 1 pt, the 9 = 2 pts. Dashed = dead.";
+
+    // log
+    var logEl = $("log");
+    logEl.innerHTML = "";
+    state.log.forEach(function (line) {
+      var div = document.createElement("div");
+      div.innerHTML = line;
+      logEl.appendChild(div);
+    });
+
+    // winner
+    var banner = $("winnerBanner");
+    var over = state.winner !== null;
+    if (over) {
+      var w = state.winner, l = 1 - w;
+      banner.style.display = "block";
+      banner.innerHTML = "🏆 " + pname(w) + " wins " + state.scores[w] + "&ndash;" + state.scores[l] +
+        '<div class="split">Match points: ' + pname(w) + " <b>" + state.matchPts[w] + "</b> &mdash; " +
+        pname(l) + " <b>" + state.matchPts[l] + "</b></div>";
+    } else {
+      banner.style.display = "none";
+    }
+    $("postMatch").classList.toggle("hidden", !over);
+    ["missBtn", "defBtn", "foulBtn", "deadBtn"].forEach(function (id) {
+      $(id).disabled = over;
+      $(id).style.opacity = over ? ".45" : "1";
+    });
+    if (over) {
+      document.querySelectorAll(".ball").forEach(function (b) { b.disabled = true; b.style.opacity = ".45"; });
+    }
+
+    save();
+  }
+
+  // ---------------- game logic ----------------
+  function markOpponentAction(p) {
+    if (p !== state.breaker) state.opponentShot = true;
+  }
+
+  function flushRun(p) {
+    if (state.currentRun > 0) {
+      state.runs[p].push(state.currentRun);
+      state.currentRun = 0;
+    }
+  }
+
+  function endTurn() {
+    var p = state.current;
+    // Inning completes when the lag loser (player 1, bottom of sheet) ends a turn
+    if (p === 1) state.innings += 1;
+    state.current = 1 - p;
+  }
+
+  function onBallTap(e) {
+    if (state.winner !== null) return;
+    var b = parseInt(e.currentTarget.dataset.ball, 10);
+    if (state.deadMode) {
+      if (b === 9) {
+        addLog("The 9 is never dead — it spots after a foul.");
+        render();
+        return;
+      }
+      snapshot();
+      state.balls[b] = "dead";
+      state.deadTotal += 1;
+      addLog("Ball " + b + " marked <b>dead</b>.");
+      render();
+      return;
+    }
+    snapshot();
+    var p = state.current;
+    markOpponentAction(p);
+    var pts = b === 9 ? 2 : 1;
+    state.balls[b] = "p" + p;
+    state.scores[p] += pts;
+    state.currentRun += 1;
+    addLog("<b>" + pname(p) + "</b> pockets the " + b + " (+" + pts + ") — " + state.scores[p] + "/" + state.goals[p]);
+
+    var won = state.scores[p] >= state.goals[p];
+    if (b === 9) {
+      // rack over: remaining balls are dead
+      var leftDead = 0;
+      for (var i = 1; i <= 8; i++) {
+        if (state.balls[i] === "table") { state.balls[i] = "dead"; leftDead += 1; }
+      }
+      if (leftDead) {
+        state.deadTotal += leftDead;
+        addLog(leftDead + " ball(s) left on the table go dead.");
+      }
+      var cleanSweep = (p === state.breaker && !state.opponentShot);
+      if (cleanSweep) {
+        // ask snap vs B&R, then finish rack / match
+        pendingNine = { p: p, won: won };
+        $("nineOverlay").classList.add("show");
+        render();
+        return;
+      }
+      finishRack(p, won);
+      return;
+    }
+
+    if (won) finalizeMatch(p);
+    render();
+  }
+
+  function resolveNine(isSnap) {
+    var ctx = pendingNine;
+    pendingNine = null;
+    $("nineOverlay").classList.remove("show");
+    if (!ctx) return;
+    if (isSnap) {
+      state.snaps[ctx.p] += 1;
+      addLog("💥 <b>" + pname(ctx.p) + " — 9 ON THE SNAP!</b>");
+    } else {
+      state.brs[ctx.p] += 1;
+      addLog("🔥 <b>" + pname(ctx.p) + " — BREAK AND RUN!</b>");
+    }
+    finishRack(ctx.p, ctx.won);
+  }
+
+  function finishRack(rackWinner, matchWon) {
+    if (matchWon) { finalizeMatch(rackWinner); render(); return; }
+    state.rackNum += 1;
+    state.balls = freshBalls();
+    state.breaker = rackWinner;
+    state.current = rackWinner;
+    state.opponentShot = false;
+    addLog("— Rack " + state.rackNum + ": <b>" + pname(rackWinner) + "</b> breaks. —");
+    render();
+  }
+
+  function getTopRuns(st) {
+    var list = [];
+    for (var i = 0; i < 2; i++) {
+      st.runs[i].forEach(function (len) { list.push({ p: i, len: len }); });
+    }
+    if (st.currentRun > 0 && st.winner === null) {
+      list.push({ p: st.current, len: st.currentRun, live: true });
+    }
+    list.sort(function (a, b) { return b.len - a.len; });
+    return list.slice(0, 3);
+  }
+
+  function finalizeMatch(w) {
+    flushRun(w);
+    var l = 1 - w;
+    var lPts = loserMatchPoints(state.sls[l], state.scores[l]);
+    state.matchPts = [];
+    state.matchPts[w] = 20 - lPts;
+    state.matchPts[l] = lPts;
+    state.winner = w;
+    addLog("<b>🏆 " + pname(w) + " reaches " + state.scores[w] + " and wins the match " +
+      state.matchPts[w] + "&ndash;" + state.matchPts[l] + " in match points.</b>");
+    saveToHistory();
+  }
+
+  function miss() {
+    if (state.winner !== null) return;
+    snapshot();
+    var p = state.current;
+    markOpponentAction(p);
+    if (state.deadMode) state.deadMode = false;
+    flushRun(p);
+    addLog(pname(p) + " misses — " + pname(1 - p) + " to the table.");
+    endTurn();
+    render();
+  }
+
+  function defense() {
+    if (state.winner !== null) return;
+    snapshot();
+    var p = state.current;
+    markOpponentAction(p);
+    if (state.deadMode) state.deadMode = false;
+    flushRun(p);
+    state.defenses[p] += 1;
+    addLog("<b>" + pname(p) + "</b> plays a defensive shot (marked) — turn over.");
+    endTurn();
+    render();
+  }
+
+  function foul() {
+    if (state.winner !== null) return;
+    snapshot();
+    var p = state.current;
+    markOpponentAction(p);
+    if (state.deadMode) state.deadMode = false;
+    flushRun(p);
+    addLog("<b>" + pname(p) + "</b> fouls — " + pname(1 - p) + " has <b>ball in hand</b>. Mark any balls made as dead.");
+    endTurn();
+    render();
+  }
+
+  function toggleDead() {
+    if (state.winner !== null) return;
+    state.deadMode = !state.deadMode;
+    render();
+  }
+
+  function undo() {
+    if (pendingNine) { pendingNine = null; $("nineOverlay").classList.remove("show"); }
+    if (!history.length) return;
+    state = JSON.parse(history.pop());
+    render();
+  }
+
+  // ---------------- match history ----------------
+  function loadHistory() {
+    try { return JSON.parse(localStorage.getItem(HIST_KEY)) || []; } catch (e) { return []; }
+  }
+
+  function saveToHistory() {
+    var hist = loadHistory();
+    hist.unshift({
+      date: new Date().toISOString(),
+      names: state.names.slice(),
+      sls: state.sls.slice(),
+      goals: state.goals.slice(),
+      scores: state.scores.slice(),
+      matchPts: state.matchPts.slice(),
+      winner: state.winner,
+      innings: state.innings,
+      defenses: state.defenses.slice(),
+      brs: state.brs.slice(),
+      snaps: state.snaps.slice(),
+      deadTotal: state.deadTotal,
+      racks: state.rackNum,
+      runs: state.runs.map(function (arr) { return arr.slice(); }),
+      topRuns: getTopRuns(state).map(function (r) { return { name: state.names[r.p], len: r.len }; })
+    });
+    try { localStorage.setItem(HIST_KEY, JSON.stringify(hist)); } catch (e) {}
+  }
+
+  function fmtDate(iso) {
+    var d = new Date(iso);
+    return d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }) +
+      " " + d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+  }
+
+  function renderHistory() {
+    var hist = loadHistory();
+
+    // career stats
+    var players = {};
+    hist.forEach(function (m) {
+      for (var i = 0; i < 2; i++) {
+        var key = m.names[i];
+        if (!players[key]) players[key] = { matches: 0, wins: 0, mp: 0, pts: 0, def: 0, br: 0, snap: 0, innings: 0, bestRun: 0 };
+        var s = players[key];
+        s.matches += 1;
+        if (m.winner === i) s.wins += 1;
+        s.mp += m.matchPts[i];
+        s.pts += m.scores[i];
+        s.def += m.defenses[i];
+        s.br += m.brs[i];
+        s.snap += m.snaps[i];
+        s.innings += m.innings;
+        (m.runs && m.runs[i] || []).forEach(function (len) { if (len > s.bestRun) s.bestRun = len; });
+      }
+    });
+    var cs = $("careerStats");
+    var keys = Object.keys(players);
+    if (!keys.length) {
+      cs.innerHTML = '<div class="hist-empty">No matches yet — finish a match and it lands here automatically.</div>';
+    } else {
+      var html = '<table class="hist"><tr><th>Player</th><th>W-L</th><th>Win %</th><th>Match Pts</th><th>Ball Pts</th><th>Defenses</th><th>B&amp;R</th><th>9-Snap</th><th>Best Run</th></tr>';
+      keys.sort(function (a, b) { return players[b].wins - players[a].wins; }).forEach(function (k) {
+        var s = players[k];
+        html += "<tr><td><b>" + k + "</b></td><td>" + s.wins + "-" + (s.matches - s.wins) + "</td><td>" +
+          Math.round(s.wins / s.matches * 100) + "%</td><td>" + s.mp + "</td><td>" + s.pts + "</td><td>" +
+          s.def + "</td><td>" + s.br + "</td><td>" + s.snap + "</td><td>" + s.bestRun + "</td></tr>";
+      });
+      cs.innerHTML = html + "</table>";
+    }
+
+    // match list
+    var list = $("histList");
+    if (!hist.length) {
+      list.innerHTML = '<div class="hist-empty">No match history yet.</div>';
+      return;
+    }
+    var html2 = '<table class="hist"><tr><th>Date</th><th>Match</th><th>Score</th><th>Match Pts</th><th>Innings</th><th>Notes</th></tr>';
+    hist.forEach(function (m) {
+      var w = m.winner, l = 1 - w;
+      var notes = "";
+      for (var i = 0; i < 2; i++) {
+        if (m.defenses[i]) notes += '<span class="tag def">' + m.names[i] + " D&times;" + m.defenses[i] + "</span>";
+        if (m.brs[i]) notes += '<span class="tag">' + m.names[i] + " B&amp;R&times;" + m.brs[i] + "</span>";
+        if (m.snaps[i]) notes += '<span class="tag snap">' + m.names[i] + " Snap&times;" + m.snaps[i] + "</span>";
+      }
+      (m.topRuns || []).forEach(function (r) {
+        notes += '<span class="tag" style="background:var(--gold);color:#3a2c00;">' + r.name + " Run " + r.len + "</span>";
+      });
+      html2 += "<tr><td>" + fmtDate(m.date) + "</td><td><b>" + m.names[w] + "</b> (SL-" + m.sls[w] + ") def. " +
+        m.names[l] + " (SL-" + m.sls[l] + ")</td><td>" + m.scores[w] + "&ndash;" + m.scores[l] + "</td><td><b>" +
+        m.matchPts[w] + "&ndash;" + m.matchPts[l] + "</b></td><td>" + m.innings + "</td><td>" + (notes || "&mdash;") + "</td></tr>";
+    });
+    list.innerHTML = html2 + "</table>";
+  }
+
+  function exportHistory() {
+    var blob = new Blob([JSON.stringify(loadHistory(), null, 2)], { type: "application/json" });
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "apa-9ball-history.json";
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
+
+  function clearHistory() {
+    if (!confirm("Delete ALL match history? This can't be undone.")) return;
+    try { localStorage.removeItem(HIST_KEY); } catch (e) {}
+    renderHistory();
+  }
+
+  // ---------------- player profiles ----------------
+  function loadProfiles() {
+    try { return JSON.parse(localStorage.getItem(PROF_KEY)) || []; } catch (e) { return []; }
+  }
+
+  function saveProfiles(profiles) {
+    try { localStorage.setItem(PROF_KEY, JSON.stringify(profiles)); } catch (e) {}
+  }
+
+  function findProfile(profiles, name) {
+    var key = name.trim().toLowerCase();
+    for (var i = 0; i < profiles.length; i++) {
+      if (profiles[i].name.trim().toLowerCase() === key) return profiles[i];
+    }
+    return null;
+  }
+
+  function upsertProfile(name, sl, touch) {
+    name = name.trim();
+    if (!name) return;
+    var profiles = loadProfiles();
+    var p = findProfile(profiles, name);
+    if (p) {
+      p.sl = sl;
+      if (touch) p.lastPlayed = new Date().toISOString();
+    } else {
+      profiles.push({ name: name, sl: sl, created: new Date().toISOString(), lastPlayed: touch ? new Date().toISOString() : null });
+    }
+    saveProfiles(profiles);
+  }
+
+  function sortedProfiles() {
+    return loadProfiles().sort(function (a, b) {
+      var la = a.lastPlayed || a.created || "", lb = b.lastPlayed || b.created || "";
+      return la < lb ? 1 : la > lb ? -1 : 0;
+    });
+  }
+
+  function refreshProfileSelects() {
+    ["p1profile", "p2profile"].forEach(function (id) {
+      var sel = $(id);
+      var prev = sel.value;
+      sel.innerHTML = "";
+      var first = document.createElement("option");
+      first.value = "";
+      first.textContent = "— New player (type below) —";
+      sel.appendChild(first);
+      sortedProfiles().forEach(function (p) {
+        var o = document.createElement("option");
+        o.value = p.name;
+        o.textContent = p.name + "  (SL-" + p.sl + ")";
+        sel.appendChild(o);
+      });
+      sel.value = prev;
+      if (sel.selectedIndex === -1) sel.selectedIndex = 0;
+    });
+  }
+
+  function onProfilePick(which) {
+    var sel = $(which === 0 ? "p1profile" : "p2profile");
+    if (!sel.value) return;
+    var p = findProfile(loadProfiles(), sel.value);
+    if (!p) return;
+    $(which === 0 ? "p1name" : "p2name").value = p.name;
+    $(which === 0 ? "p1sl" : "p2sl").value = String(p.sl);
+    updGoal();
+  }
+
+  function playerRecord(name) {
+    var key = name.trim().toLowerCase();
+    var w = 0, l = 0;
+    loadHistory().forEach(function (m) {
+      for (var i = 0; i < 2; i++) {
+        if (m.names[i].trim().toLowerCase() === key) (m.winner === i ? w++ : l++);
+      }
+    });
+    return w + "-" + l;
+  }
+
+  function renderProfiles() {
+    var list = $("profileList");
+    var profiles = sortedProfiles();
+    if (!profiles.length) {
+      list.innerHTML = '<div class="hist-empty">No saved players yet. Add one above, or start a match — both players are saved automatically.</div>';
+      return;
+    }
+    var html = '<table class="hist"><tr><th>Player</th><th>Skill Level</th><th>Record</th><th>Last Played</th><th></th></tr>';
+    profiles.forEach(function (p, idx) {
+      var opts = "";
+      for (var i = 1; i <= 9; i++) {
+        opts += '<option value="' + i + '"' + (i === p.sl ? " selected" : "") + ">SL-" + i + " (" + GOALS[i] + ")</option>";
+      }
+      html += "<tr><td><b>" + p.name + "</b></td>" +
+        '<td><select data-prof-sl="' + idx + '" style="padding:6px;border:2px solid #d5dbdb;border-radius:6px;">' + opts + "</select></td>" +
+        "<td>" + playerRecord(p.name) + "</td>" +
+        "<td>" + (p.lastPlayed ? fmtDate(p.lastPlayed) : "&mdash;") + "</td>" +
+        '<td><button class="btn-red" data-prof-del="' + idx + '" style="padding:6px 12px;font-size:.8rem;">Delete</button></td></tr>';
+    });
+    list.innerHTML = html + "</table>";
+
+    list.querySelectorAll("[data-prof-sl]").forEach(function (sel) {
+      sel.addEventListener("change", function () {
+        var profiles2 = sortedProfiles();
+        var p = profiles2[parseInt(sel.dataset.profSl, 10)];
+        upsertProfile(p.name, parseInt(sel.value, 10), false);
+        renderProfiles();
+        refreshProfileSelects();
+      });
+    });
+    list.querySelectorAll("[data-prof-del]").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        var profiles2 = sortedProfiles();
+        var p = profiles2[parseInt(btn.dataset.profDel, 10)];
+        if (!confirm("Delete player \"" + p.name + "\"? (Match history is kept.)")) return;
+        saveProfiles(loadProfiles().filter(function (q) {
+          return q.name.trim().toLowerCase() !== p.name.trim().toLowerCase();
+        }));
+        renderProfiles();
+        refreshProfileSelects();
+      });
+    });
+  }
+
+  function addProfileFromForm() {
+    var name = $("npName").value.trim();
+    if (!name) { $("npName").focus(); return; }
+    upsertProfile(name, parseInt($("npSl").value, 10), false);
+    $("npName").value = "";
+    renderProfiles();
+    refreshProfileSelects();
+  }
+
+  // ---------------- setup / navigation ----------------
+  function fillSlSelect(sel, def) {
+    for (var i = 1; i <= 9; i++) {
+      var o = document.createElement("option");
+      o.value = i;
+      o.textContent = "SL-" + i + "  (" + GOALS[i] + " pts)";
+      if (i === def) o.selected = true;
+      sel.appendChild(o);
+    }
+  }
+
+  function startMatch() {
+    var names = [
+      $("p1name").value.trim() || "Player 1",
+      $("p2name").value.trim() || "Player 2"
+    ];
+    var sls = [parseInt($("p1sl").value, 10), parseInt($("p2sl").value, 10)];
+    upsertProfile(names[0], sls[0], true);
+    upsertProfile(names[1], sls[1], true);
+    history = [];
+    state = defaultState(names, sls);
+    addLog("Match on! " + names[0] + " (SL-" + sls[0] + ", races to " + state.goals[0] + ") vs " +
+      names[1] + " (SL-" + sls[1] + ", races to " + state.goals[1] + "). " + names[0] + " breaks.");
+    $("setupPanel").classList.add("hidden");
+    $("gamePanel").classList.remove("hidden");
+    render();
+  }
+
+  function toSetup() {
+    history = [];
+    state = null;
+    try { localStorage.removeItem(STATE_KEY); } catch (e) {}
+    $("gamePanel").classList.add("hidden");
+    $("setupPanel").classList.remove("hidden");
+    refreshProfileSelects();
+    window.scrollTo(0, 0);
+  }
+
+  function newMatch() {
+    if (state && state.winner === null && !confirm("Match in progress — abandon it? (It will NOT be saved to history.)")) return;
+    toSetup();
+  }
+
+  function rematch() {
+    var names = state.names, sls = state.sls;
+    history = [];
+    state = defaultState(names, sls);
+    addLog("Rematch! " + names[0] + " breaks.");
+    render();
+    window.scrollTo(0, 0);
+  }
+
+  function showTab(which) {
+    $("viewScore").classList.toggle("hidden", which !== "score");
+    $("viewPlayers").classList.toggle("hidden", which !== "players");
+    $("viewHistory").classList.toggle("hidden", which !== "history");
+    $("viewRules").classList.toggle("hidden", which !== "rules");
+    $("tabScore").classList.toggle("on", which === "score");
+    $("tabPlayers").classList.toggle("on", which === "players");
+    $("tabHistory").classList.toggle("on", which === "history");
+    $("tabRules").classList.toggle("on", which === "rules");
+    if (which === "history") renderHistory();
+    if (which === "players") renderProfiles();
+  }
+
+  // ---------------- wire up ----------------
+  fillSlSelect($("p1sl"), 4);
+  fillSlSelect($("p2sl"), 4);
+  fillSlSelect($("npSl"), 4);
+  refreshProfileSelects();
+  $("p1profile").addEventListener("change", function () { onProfilePick(0); });
+  $("p2profile").addEventListener("change", function () { onProfilePick(1); });
+  $("npAddBtn").addEventListener("click", addProfileFromForm);
+  $("tabPlayers").addEventListener("click", function () { showTab("players"); });
+  var updGoal = function () {
+    $("p1goal").textContent = "Races to " + GOALS[parseInt($("p1sl").value, 10)] + " points";
+    $("p2goal").textContent = "Races to " + GOALS[parseInt($("p2sl").value, 10)] + " points";
+  };
+  $("p1sl").addEventListener("change", updGoal);
+  $("p2sl").addEventListener("change", updGoal);
+  updGoal();
+
+  $("startBtn").addEventListener("click", startMatch);
+  $("missBtn").addEventListener("click", miss);
+  $("defBtn").addEventListener("click", defense);
+  $("foulBtn").addEventListener("click", foul);
+  $("deadBtn").addEventListener("click", toggleDead);
+  $("undoBtn").addEventListener("click", undo);
+  $("newMatchBtn").addEventListener("click", newMatch);
+  $("rematchBtn").addEventListener("click", rematch);
+  $("setupAgainBtn").addEventListener("click", toSetup);
+  $("snapYes").addEventListener("click", function () { resolveNine(true); });
+  $("snapNo").addEventListener("click", function () { resolveNine(false); });
+  $("tabScore").addEventListener("click", function () { showTab("score"); });
+  $("tabHistory").addEventListener("click", function () { showTab("history"); });
+  $("tabRules").addEventListener("click", function () { showTab("rules"); });
+
+  // restore in-progress match
+  try {
+    var saved = localStorage.getItem(STATE_KEY);
+    if (saved) {
+      var parsed = JSON.parse(saved);
+      if (parsed && parsed.state) {
+        state = parsed.state;
+        history = parsed.history || [];
+        $("setupPanel").classList.add("hidden");
+        $("gamePanel").classList.remove("hidden");
+        render();
+      }
+    }
+  } catch (e) {}
+})();
+</script>
+</body>
+</html>
