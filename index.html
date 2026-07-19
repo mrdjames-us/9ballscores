@@ -333,7 +333,7 @@
         <div class="meta-row">
           <div class="small" id="raceLine"></div>
           <div class="meta-btns">
-            <button class="btn-gray" id="newMatchBtn">New Match</button>
+            <button class="btn-red" id="cancelMatchBtn">Cancel &amp; Reset</button>
           </div>
         </div>
 
@@ -1367,8 +1367,13 @@
     window.scrollTo(0, 0);
   }
 
-  function newMatch() {
-    if (state && state.winner === null && !confirm("Match in progress — abandon it? (It will NOT be saved to history.)")) return;
+  function cancelAndReset() {
+    if (!state) { toSetup(); return; }
+    if (state.winner === null) {
+      if (!confirm("Cancel this match and reset?\n\nNothing will be saved to history. Scores go back to setup.")) return;
+    } else {
+      if (!confirm("Reset and start over? This finished match is already in history.")) return;
+    }
     toSetup();
   }
 
@@ -1423,7 +1428,7 @@
   $("foulBtn").addEventListener("click", foul);
   $("deadBtn").addEventListener("click", toggleDead);
   $("undoBtn").addEventListener("click", undo);
-  $("newMatchBtn").addEventListener("click", newMatch);
+  $("cancelMatchBtn").addEventListener("click", cancelAndReset);
   $("rematchBtn").addEventListener("click", rematch);
   $("setupAgainBtn").addEventListener("click", toSetup);
   $("snapYes").addEventListener("click", function () { resolveNine(true); });
