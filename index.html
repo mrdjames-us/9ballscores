@@ -213,6 +213,14 @@
 
   .hidden { display: none !important; }
 
+  .guest-check {
+    display: flex; align-items: center; gap: 8px; margin-top: 8px;
+    font-size: .8rem; color: var(--muted); font-weight: 600; cursor: pointer; user-select: none;
+  }
+  .guest-check input { width: 16px; height: 16px; accent-color: var(--felt); cursor: pointer; }
+  .guest-check.on { color: var(--red); }
+  .tag.guest { background: #95a5a6; }
+
   @media (max-width: 560px) {
     .player-score { font-size: 4.4rem; }
     .ball { width: 44px; height: 44px; font-size: 1rem; }
@@ -245,6 +253,7 @@
           <label for="p1profile">Player 1</label>
           <select id="p1profile"></select>
           <input id="p1name" type="text" placeholder="Player 1" maxlength="20" style="margin-top:6px;">
+          <label class="guest-check" id="p1guestLabel"><input type="checkbox" id="p1guest"> Guest / random opponent (no history)</label>
         </div>
         <div>
           <label for="p1sl">Skill Level</label>
@@ -255,6 +264,7 @@
           <label for="p2profile">Player 2</label>
           <select id="p2profile"></select>
           <input id="p2name" type="text" placeholder="Player 2" maxlength="20" style="margin-top:6px;">
+          <label class="guest-check" id="p2guestLabel"><input type="checkbox" id="p2guest"> Guest / random opponent (no history)</label>
         </div>
         <div>
           <label for="p2sl">Skill Level</label>
@@ -547,11 +557,13 @@
     return b;
   }
 
-  function defaultState(names, sls, lagWinner) {
+  function defaultState(names, sls, lagWinner, guests) {
     lagWinner = (lagWinner === 1) ? 1 : 0;
+    guests = guests || [false, false];
     return {
       names: names,
       sls: sls,
+      guests: [!!guests[0], !!guests[1]], // guest = random opponent, skip profiles/career
       goals: [GOALS[sls[0]], GOALS[sls[1]]],
       scores: [0, 0],
       defenses: [0, 0],
@@ -573,6 +585,15 @@
       startedAt: new Date().toISOString(),
       log: []
     };
+  }
+
+  function isGuest(m, i) {
+    return !!(m && m.guests && m.guests[i]);
+  }
+
+  function displayName(m, i) {
+    var n = m.names[i];
+    return isGuest(m, i) ? (n + " (guest)") : n;
   }
 
   function snapshot() {
@@ -1070,6 +1091,7 @@
       date: new Date().toISOString(),
       names: state.names.slice(),
       sls: state.sls.slice(),
+      guests: (state.guests || [false, false]).slice(),
       goals: state.goals.slice(),
       scores: state.scores.slice(),
       matchPts: state.matchPts.slice(),
@@ -1081,7 +1103,8 @@
       deadTotal: state.deadTotal,
       racks: state.rackNum,
       runs: state.runs.map(function (arr) { return arr.slice(); }),
-      topRuns: getTopRuns(state).map(function (r) { return { name: state.names[r.p], len: r.len }; })
+      topRuns: getTopRuns(state).filter(function (r) { return !isGuest(state, r.p); })
+        .map(function (r) { return { name: state.names[r.p], len: r.len }; })
     });
     try { localStorage.setItem(HIST_KEY, JSON.stringify(hist)); } catch (e) {}
     // Fire-and-forget cloud push after match
@@ -1097,10 +1120,11 @@
   function renderHistory() {
     var hist = loadHistory();
 
-    // career stats
+    // career stats — skip guests (random opponents)
     var players = {};
     hist.forEach(function (m) {
       for (var i = 0; i < 2; i++) {
+        if (isGuest(m, i)) continue;
         var key = m.names[i];
         if (!players[key]) players[key] = { matches: 0, wins: 0, mp: 0, pts: 0, def: 0, br: 0, snap: 0, innings: 0, bestRun: 0 };
         var s = players[key];
@@ -1140,6 +1164,7 @@
     hist.forEach(function (m) {
       var w = m.winner, l = 1 - w;
       var notes = "";
+      if (isGuest(m, 0) || isGuest(m, 1)) notes += '<span class="tag guest">Guest match</span>';
       for (var i = 0; i < 2; i++) {
         if (m.defenses[i]) notes += '<span class="tag def">' + m.names[i] + " D&times;" + m.defenses[i] + "</span>";
         if (m.brs[i]) notes += '<span class="tag">' + m.names[i] + " B&amp;R&times;" + m.brs[i] + "</span>";
@@ -1148,8 +1173,8 @@
       (m.topRuns || []).forEach(function (r) {
         notes += '<span class="tag" style="background:var(--gold);color:#3a2c00;">' + r.name + " Run " + r.len + "</span>";
       });
-      html2 += "<tr><td>" + fmtDate(m.date) + "</td><td><b>" + m.names[w] + "</b> (SL-" + m.sls[w] + ") def. " +
-        m.names[l] + " (SL-" + m.sls[l] + ")</td><td>" + m.scores[w] + "&ndash;" + m.scores[l] + "</td><td><b>" +
+      html2 += "<tr><td>" + fmtDate(m.date) + "</td><td><b>" + displayName(m, w) + "</b> (SL-" + m.sls[w] + ") def. " +
+        displayName(m, l) + " (SL-" + m.sls[l] + ")</td><td>" + m.scores[w] + "&ndash;" + m.scores[l] + "</td><td><b>" +
         m.matchPts[w] + "&ndash;" + m.matchPts[l] + "</b></td><td>" + m.innings + "</td><td>" + (notes || "&mdash;") + "</td></tr>";
     });
     list.innerHTML = html2 + "</table>";
@@ -1252,10 +1277,29 @@
     var w = 0, l = 0;
     loadHistory().forEach(function (m) {
       for (var i = 0; i < 2; i++) {
+        if (isGuest(m, i)) continue;
         if (m.names[i].trim().toLowerCase() === key) (m.winner === i ? w++ : l++);
       }
     });
     return w + "-" + l;
+  }
+
+  function onGuestToggle(which) {
+    var cb = $(which === 0 ? "p1guest" : "p2guest");
+    var label = $(which === 0 ? "p1guestLabel" : "p2guestLabel");
+    var prof = $(which === 0 ? "p1profile" : "p2profile");
+    var name = $(which === 0 ? "p1name" : "p2name");
+    label.classList.toggle("on", cb.checked);
+    if (cb.checked) {
+      prof.value = "";
+      if (!name.value.trim() || name.value.trim() === "Player 1" || name.value.trim() === "Player 2") {
+        name.value = "Opponent";
+      }
+      name.placeholder = "Opponent name (optional)";
+    } else {
+      name.placeholder = which === 0 ? "Player 1" : "Player 2";
+    }
+    updateLagHints();
   }
 
   function renderProfiles() {
@@ -1339,19 +1383,23 @@
   }
 
   function startMatch() {
+    var guests = [$("p1guest").checked, $("p2guest").checked];
     var names = [
-      $("p1name").value.trim() || "Player 1",
-      $("p2name").value.trim() || "Player 2"
+      $("p1name").value.trim() || (guests[0] ? "Opponent" : "Player 1"),
+      $("p2name").value.trim() || (guests[1] ? "Opponent" : "Player 2")
     ];
     var sls = [parseInt($("p1sl").value, 10), parseInt($("p2sl").value, 10)];
-    upsertProfile(names[0], sls[0], true);
-    upsertProfile(names[1], sls[1], true);
+    if (!guests[0]) upsertProfile(names[0], sls[0], true);
+    if (!guests[1]) upsertProfile(names[1], sls[1], true);
     history = [];
-    state = defaultState(names, sls, lagWinnerPick);
+    state = defaultState(names, sls, lagWinnerPick, guests);
     var lw = state.lagWinner;
+    var gNote = (guests[0] || guests[1])
+      ? " Guest" + (guests[0] && guests[1] ? "s" : "") + " not saved to career history."
+      : "";
     addLog("Match on! " + names[0] + " (SL-" + sls[0] + ", races to " + state.goals[0] + ") vs " +
       names[1] + " (SL-" + sls[1] + ", races to " + state.goals[1] + "). " +
-      names[lw] + " won the lag and breaks.");
+      names[lw] + " won the lag and breaks." + gNote);
     $("setupPanel").classList.add("hidden");
     $("gamePanel").classList.remove("hidden");
     render();
@@ -1380,8 +1428,9 @@
   function rematch() {
     var names = state.names, sls = state.sls;
     var lag = (state.lagWinner === 1) ? 1 : 0;
+    var guests = (state.guests || [false, false]).slice();
     history = [];
-    state = defaultState(names, sls, lag);
+    state = defaultState(names, sls, lag, guests);
     addLog("Rematch! " + names[state.lagWinner] + " won the lag and breaks.");
     render();
     window.scrollTo(0, 0);
@@ -1405,8 +1454,18 @@
   fillSlSelect($("p2sl"), 4);
   fillSlSelect($("npSl"), 4);
   refreshProfileSelects();
-  $("p1profile").addEventListener("change", function () { onProfilePick(0); });
-  $("p2profile").addEventListener("change", function () { onProfilePick(1); });
+  $("p1profile").addEventListener("change", function () {
+    if ($("p1guest").checked) $("p1guest").checked = false;
+    onGuestToggle(0);
+    onProfilePick(0);
+  });
+  $("p2profile").addEventListener("change", function () {
+    if ($("p2guest").checked) $("p2guest").checked = false;
+    onGuestToggle(1);
+    onProfilePick(1);
+  });
+  $("p1guest").addEventListener("change", function () { onGuestToggle(0); });
+  $("p2guest").addEventListener("change", function () { onGuestToggle(1); });
   $("npAddBtn").addEventListener("click", addProfileFromForm);
   $("tabPlayers").addEventListener("click", function () { showTab("players"); });
   var updGoal = function () {
