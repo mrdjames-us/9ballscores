@@ -183,6 +183,21 @@
   }
   .sync-help { font-size: .78rem; color: var(--muted); line-height: 1.45; margin-top: 6px; }
 
+  /* lag winner */
+  .lag-row { margin: 4px 0 14px; }
+  .lag-row > label { font-weight: 600; font-size: .85rem; display: block; margin-bottom: 8px; }
+  .lag-picks { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .lag-picks button {
+    background: #fff; border: 2px solid #d5dbdb; color: var(--ink);
+    padding: 12px 10px; border-radius: 10px; font-weight: 700; font-size: .95rem;
+  }
+  .lag-picks button.on {
+    background: var(--gold); border-color: var(--gold); color: #3a2c00;
+  }
+  .lag-picks button .hint {
+    display: block; font-weight: 500; font-size: .72rem; opacity: .75; margin-top: 2px;
+  }
+
   /* rules */
   .rules-body { line-height: 1.6; font-size: .92rem; }
   .rules-body h3 { margin: 18px 0 6px; font-size: .95rem; color: var(--felt); text-transform: uppercase; letter-spacing: 1px; }
@@ -227,7 +242,7 @@
     <div class="panel" id="setupPanel">
       <div class="setup-grid">
         <div>
-          <label for="p1profile">Player 1 (shoots first — won the lag)</label>
+          <label for="p1profile">Player 1</label>
           <select id="p1profile"></select>
           <input id="p1name" type="text" placeholder="Player 1" maxlength="20" style="margin-top:6px;">
         </div>
@@ -247,8 +262,15 @@
           <div class="goal-note" id="p2goal"></div>
         </div>
       </div>
+      <div class="lag-row">
+        <label>Who won the lag? (breaks first)</label>
+        <div class="lag-picks">
+          <button type="button" id="lagP1" class="on" data-lag="0">Player 1<span class="hint" id="lagP1hint">breaks · shoots first</span></button>
+          <button type="button" id="lagP2" data-lag="1">Player 2<span class="hint" id="lagP2hint">breaks · shoots first</span></button>
+        </div>
+      </div>
       <div class="rookie-note">New players: males start SL-4 (31 pts), females SL-2 (19 pts). Established 8-ball players start at their 8-ball rating.</div>
-      <button class="btn-primary" id="startBtn">Lag Won — Start Match</button>
+      <button class="btn-primary" id="startBtn">Start Match</button>
     </div>
 
     <!-- game -->
@@ -525,7 +547,8 @@
     return b;
   }
 
-  function defaultState(names, sls) {
+  function defaultState(names, sls, lagWinner) {
+    lagWinner = (lagWinner === 1) ? 1 : 0;
     return {
       names: names,
       sls: sls,
@@ -538,8 +561,9 @@
       innings: 0,
       runs: [[], []],         // completed run lengths (balls in a row) per player
       currentRun: 0,          // balls made in a row by the player currently shooting
-      current: 0,            // player 0 won the lag, shoots first
-      breaker: 0,            // rack breaker (winner of previous rack)
+      lagWinner: lagWinner,  // who won the lag (breaks first / top of sheet)
+      current: lagWinner,    // lag winner shoots first
+      breaker: lagWinner,    // first rack breaker
       opponentShot: false,   // has the non-breaker taken a shot this rack?
       balls: freshBalls(),
       rackNum: 1,
@@ -679,8 +703,9 @@
 
   function endTurn() {
     var p = state.current;
-    // Inning completes when the lag loser (player 1, bottom of sheet) ends a turn
-    if (p === 1) state.innings += 1;
+    // Inning completes when the lag loser (bottom of sheet) ends a turn
+    var lagLoser = (state.lagWinner === 1) ? 0 : 1;
+    if (p === lagLoser) state.innings += 1;
     state.current = 1 - p;
   }
 
@@ -1219,6 +1244,7 @@
     $(which === 0 ? "p1name" : "p2name").value = p.name;
     $(which === 0 ? "p1sl" : "p2sl").value = String(p.sl);
     updGoal();
+    updateLagHints();
   }
 
   function playerRecord(name) {
@@ -1296,6 +1322,22 @@
     }
   }
 
+  var lagWinnerPick = 0; // 0 = Player 1, 1 = Player 2
+
+  function setLagWinner(i) {
+    lagWinnerPick = (i === 1) ? 1 : 0;
+    $("lagP1").classList.toggle("on", lagWinnerPick === 0);
+    $("lagP2").classList.toggle("on", lagWinnerPick === 1);
+    updateLagHints();
+  }
+
+  function updateLagHints() {
+    var n1 = ($("p1name").value.trim() || "Player 1");
+    var n2 = ($("p2name").value.trim() || "Player 2");
+    $("lagP1").innerHTML = n1 + '<span class="hint">breaks · shoots first</span>';
+    $("lagP2").innerHTML = n2 + '<span class="hint">breaks · shoots first</span>';
+  }
+
   function startMatch() {
     var names = [
       $("p1name").value.trim() || "Player 1",
@@ -1305,9 +1347,11 @@
     upsertProfile(names[0], sls[0], true);
     upsertProfile(names[1], sls[1], true);
     history = [];
-    state = defaultState(names, sls);
+    state = defaultState(names, sls, lagWinnerPick);
+    var lw = state.lagWinner;
     addLog("Match on! " + names[0] + " (SL-" + sls[0] + ", races to " + state.goals[0] + ") vs " +
-      names[1] + " (SL-" + sls[1] + ", races to " + state.goals[1] + "). " + names[0] + " breaks.");
+      names[1] + " (SL-" + sls[1] + ", races to " + state.goals[1] + "). " +
+      names[lw] + " won the lag and breaks.");
     $("setupPanel").classList.add("hidden");
     $("gamePanel").classList.remove("hidden");
     render();
@@ -1330,9 +1374,10 @@
 
   function rematch() {
     var names = state.names, sls = state.sls;
+    var lag = (state.lagWinner === 1) ? 1 : 0;
     history = [];
-    state = defaultState(names, sls);
-    addLog("Rematch! " + names[0] + " breaks.");
+    state = defaultState(names, sls, lag);
+    addLog("Rematch! " + names[state.lagWinner] + " won the lag and breaks.");
     render();
     window.scrollTo(0, 0);
   }
@@ -1367,6 +1412,11 @@
   $("p2sl").addEventListener("change", updGoal);
   updGoal();
 
+  $("lagP1").addEventListener("click", function () { setLagWinner(0); });
+  $("lagP2").addEventListener("click", function () { setLagWinner(1); });
+  $("p1name").addEventListener("input", updateLagHints);
+  $("p2name").addEventListener("input", updateLagHints);
+  setLagWinner(0);
   $("startBtn").addEventListener("click", startMatch);
   $("missBtn").addEventListener("click", miss);
   $("defBtn").addEventListener("click", defense);
