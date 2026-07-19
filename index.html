@@ -165,6 +165,24 @@
   h2.sec { font-size: 1rem; text-transform: uppercase; letter-spacing: 1px; color: var(--felt); margin: 4px 0 12px; }
   .career-wrap { overflow-x: auto; }
 
+  /* cloud sync */
+  .sync-row { display: grid; grid-template-columns: 1fr auto; gap: 8px; margin-bottom: 10px; align-items: end; }
+  .sync-row label { font-weight: 600; font-size: .85rem; display: block; margin-bottom: 4px; }
+  .sync-row input {
+    width: 100%; padding: 10px; border: 2px solid #d5dbdb; border-radius: 8px;
+    font-size: 1.05rem; letter-spacing: 1px; text-transform: uppercase; font-weight: 700;
+  }
+  .sync-btns { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+  .sync-btns button { padding: 9px 14px; font-size: .85rem; }
+  .sync-status { font-size: .82rem; color: var(--muted); min-height: 1.2em; }
+  .sync-status.ok { color: var(--felt); font-weight: 600; }
+  .sync-status.err { color: var(--red); font-weight: 600; }
+  .sync-code-display {
+    font-family: ui-monospace, Consolas, monospace; font-size: 1.35rem; font-weight: 800;
+    letter-spacing: 2px; color: var(--felt); margin: 4px 0 10px;
+  }
+  .sync-help { font-size: .78rem; color: var(--muted); line-height: 1.45; margin-top: 6px; }
+
   /* rules */
   .rules-body { line-height: 1.6; font-size: .92rem; }
   .rules-body h3 { margin: 18px 0 6px; font-size: .95rem; color: var(--felt); text-transform: uppercase; letter-spacing: 1px; }
@@ -333,6 +351,35 @@
   <!-- ================= HISTORY VIEW ================= -->
   <div id="viewHistory" class="hidden">
     <div class="panel">
+      <h2 class="sec">Cloud Scorebook</h2>
+      <div id="syncLinked" class="hidden">
+        <div class="rookie-note" style="margin-top:0;">Sync code (enter this on other devices):</div>
+        <div class="sync-code-display" id="syncCodeShow">————</div>
+        <div class="sync-btns">
+          <button class="btn-gold" id="syncNowBtn">Sync Now</button>
+          <button class="btn-outline" id="syncCopyBtn">Copy Code</button>
+          <button class="btn-gray" id="syncUnlinkBtn">Unlink This Device</button>
+        </div>
+      </div>
+      <div id="syncSetup">
+        <div class="sync-row">
+          <div>
+            <label for="syncCodeInput">Enter an existing code</label>
+            <input id="syncCodeInput" type="text" placeholder="ABCD-1234" maxlength="12" autocomplete="off" spellcheck="false">
+          </div>
+          <button class="btn-primary" id="syncLinkBtn" style="width:auto; padding:10px 16px;">Link</button>
+        </div>
+        <div class="sync-btns">
+          <button class="btn-gold" id="syncCreateBtn">Create New Scorebook</button>
+        </div>
+      </div>
+      <div class="sync-status" id="syncStatus"></div>
+      <div class="sync-help">
+        Creates a shared cloud scorebook for players + match history (Cloudflare D1).
+        Same code on phone and laptop keeps everything in sync. Works offline; syncs when you&rsquo;re back online.
+      </div>
+    </div>
+    <div class="panel">
       <h2 class="sec">Career Stats</h2>
       <div class="career-wrap" id="careerStats"></div>
     </div>
@@ -438,6 +485,8 @@
   var STATE_KEY = "apa9StateV1";
   var HIST_KEY = "apa9HistoryV1";
   var PROF_KEY = "apa9ProfilesV1";
+  var SYNC_KEY = "apa9SyncCodeV1";
+  var SYNC_AT_KEY = "apa9SyncAtV1";
 
   var GOALS = {1:14, 2:19, 3:25, 4:31, 5:38, 6:46, 7:55, 8:65, 9:75};
   // Score of Match chart: for the loser's SL, lower bound of points earned
@@ -788,6 +837,202 @@
     render();
   }
 
+  // ---------------- cloud sync (Cloudflare D1) ----------------
+  function uuid() {
+    if (crypto && crypto.randomUUID) return crypto.randomUUID();
+    return "m-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 10);
+  }
+
+  function getSyncCode() {
+    try { return (localStorage.getItem(SYNC_KEY) || "").toUpperCase(); } catch (e) { return ""; }
+  }
+
+  function setSyncCode(code) {
+    code = (code || "").toUpperCase().replace(/[^A-Z0-9-]/g, "");
+    try {
+      if (code) localStorage.setItem(SYNC_KEY, code);
+      else localStorage.removeItem(SYNC_KEY);
+    } catch (e) {}
+  }
+
+  function setSyncStatus(msg, kind) {
+    var el = $("syncStatus");
+    if (!el) return;
+    el.textContent = msg || "";
+    el.className = "sync-status" + (kind ? " " + kind : "");
+  }
+
+  function refreshSyncUI() {
+    var code = getSyncCode();
+    var linked = !!code;
+    $("syncLinked").classList.toggle("hidden", !linked);
+    $("syncSetup").classList.toggle("hidden", linked);
+    if (linked) $("syncCodeShow").textContent = code;
+    try {
+      var at = localStorage.getItem(SYNC_AT_KEY);
+      if (linked && at) setSyncStatus("Last synced " + fmtDate(at), "ok");
+      else if (linked) setSyncStatus("Linked — tap Sync Now to pull/push.", "ok");
+      else setSyncStatus("");
+    } catch (e) {}
+  }
+
+  async function apiCreateBook() {
+    var res = await fetch("/api/book", { method: "POST" });
+    if (!res.ok) throw new Error("Create failed (" + res.status + ")");
+    return res.json();
+  }
+
+  async function apiGetBook(code) {
+    var res = await fetch("/api/book/" + encodeURIComponent(code.replace(/-/g, "")));
+    if (res.status === 404) throw new Error("Scorebook not found — check the code.");
+    if (!res.ok) throw new Error("Load failed (" + res.status + ")");
+    return res.json();
+  }
+
+  async function apiPutBook(code, payload) {
+    var res = await fetch("/api/book/" + encodeURIComponent(code.replace(/-/g, "")), {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    if (res.status === 404) throw new Error("Scorebook not found — check the code.");
+    if (!res.ok) throw new Error("Save failed (" + res.status + ")");
+    return res.json();
+  }
+
+  function applyCloudBook(book) {
+    if (!book) return;
+    if (Array.isArray(book.profiles)) {
+      try { localStorage.setItem(PROF_KEY, JSON.stringify(book.profiles)); } catch (e) {}
+    }
+    if (Array.isArray(book.history)) {
+      try { localStorage.setItem(HIST_KEY, JSON.stringify(book.history)); } catch (e) {}
+    }
+    if (book.updatedAt) {
+      try { localStorage.setItem(SYNC_AT_KEY, book.updatedAt); } catch (e) {}
+    }
+    if (book.code) setSyncCode(book.code);
+  }
+
+  async function cloudSync(opts) {
+    opts = opts || {};
+    var code = getSyncCode();
+    if (!code) {
+      if (!opts.silent) setSyncStatus("Not linked to a cloud scorebook.", "err");
+      return null;
+    }
+    if (!opts.silent) setSyncStatus("Syncing…");
+    try {
+      var book = await apiPutBook(code, {
+        profiles: loadProfiles(),
+        history: loadHistory(),
+        replace: !!opts.replace
+      });
+      applyCloudBook(book);
+      if (!opts.silent) setSyncStatus("Synced " + fmtDate(book.updatedAt || new Date().toISOString()), "ok");
+      refreshSyncUI();
+      if (opts.rerender !== false) {
+        renderHistory();
+        refreshProfileSelects();
+        if (!$("viewPlayers").classList.contains("hidden")) renderProfiles();
+      }
+      return book;
+    } catch (e) {
+      if (!opts.silent) setSyncStatus(e.message || "Sync failed", "err");
+      return null;
+    }
+  }
+
+  async function cloudPullOnly() {
+    var code = getSyncCode();
+    if (!code) return;
+    try {
+      var book = await apiGetBook(code);
+      // Merge into local, then push merged result back so both sides share
+      var merged = await apiPutBook(code, {
+        profiles: loadProfiles(),
+        history: loadHistory()
+      });
+      // Prefer server-merged response (includes remote-only matches)
+      applyCloudBook(merged);
+      refreshSyncUI();
+    } catch (e) {
+      // Offline / first load — keep local cache
+      console.warn("cloud pull skipped", e);
+    }
+  }
+
+  async function onCreateScorebook() {
+    setSyncStatus("Creating scorebook…");
+    try {
+      var book = await apiCreateBook();
+      // Seed cloud with anything already on this device
+      setSyncCode(book.code);
+      var seeded = await apiPutBook(book.code, {
+        profiles: loadProfiles(),
+        history: loadHistory()
+      });
+      applyCloudBook(seeded);
+      refreshSyncUI();
+      setSyncStatus("Scorebook created. Save this code on your other devices.", "ok");
+      renderHistory();
+      refreshProfileSelects();
+    } catch (e) {
+      setSyncStatus(e.message || "Could not create scorebook", "err");
+    }
+  }
+
+  async function onLinkScorebook() {
+    var raw = ($("syncCodeInput").value || "").trim().toUpperCase();
+    var norm = raw.replace(/[^A-Z0-9]/g, "");
+    if (norm.length !== 8) {
+      setSyncStatus("Code must look like ABCD-1234 (8 characters).", "err");
+      return;
+    }
+    var code = norm.slice(0, 4) + "-" + norm.slice(4);
+    setSyncStatus("Linking…");
+    try {
+      // Pull remote first so we know code exists, then merge local up
+      await apiGetBook(code);
+      setSyncCode(code);
+      var book = await apiPutBook(code, {
+        profiles: loadProfiles(),
+        history: loadHistory()
+      });
+      applyCloudBook(book);
+      $("syncCodeInput").value = "";
+      refreshSyncUI();
+      setSyncStatus("Linked and merged with cloud.", "ok");
+      renderHistory();
+      refreshProfileSelects();
+      if (!$("viewPlayers").classList.contains("hidden")) renderProfiles();
+    } catch (e) {
+      setSyncStatus(e.message || "Link failed", "err");
+    }
+  }
+
+  function onUnlinkScorebook() {
+    if (!confirm("Unlink this device? Cloud data stays; this device will stop auto-syncing until you link again.")) return;
+    setSyncCode("");
+    try { localStorage.removeItem(SYNC_AT_KEY); } catch (e) {}
+    refreshSyncUI();
+    setSyncStatus("Unlinked. Local history on this device is unchanged.", "ok");
+  }
+
+  function onCopySyncCode() {
+    var code = getSyncCode();
+    if (!code) return;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(code).then(function () {
+        setSyncStatus("Code copied.", "ok");
+      }).catch(function () {
+        window.prompt("Copy this code:", code);
+      });
+    } else {
+      window.prompt("Copy this code:", code);
+    }
+  }
+
   // ---------------- match history ----------------
   function loadHistory() {
     try { return JSON.parse(localStorage.getItem(HIST_KEY)) || []; } catch (e) { return []; }
@@ -796,6 +1041,7 @@
   function saveToHistory() {
     var hist = loadHistory();
     hist.unshift({
+      id: uuid(),
       date: new Date().toISOString(),
       names: state.names.slice(),
       sls: state.sls.slice(),
@@ -813,6 +1059,8 @@
       topRuns: getTopRuns(state).map(function (r) { return { name: state.names[r.p], len: r.len }; })
     });
     try { localStorage.setItem(HIST_KEY, JSON.stringify(hist)); } catch (e) {}
+    // Fire-and-forget cloud push after match
+    cloudSync({ silent: true, rerender: false });
   }
 
   function fmtDate(iso) {
@@ -895,6 +1143,12 @@
     if (!confirm("Delete ALL match history? This can't be undone.")) return;
     try { localStorage.removeItem(HIST_KEY); } catch (e) {}
     renderHistory();
+    // If linked, replace cloud history with empty (keep profiles)
+    if (getSyncCode()) {
+      cloudSync({ replace: true, silent: false }).then(function () {
+        setSyncStatus("Cloud history cleared.", "ok");
+      });
+    }
   }
 
   // ---------------- player profiles ----------------
@@ -904,6 +1158,8 @@
 
   function saveProfiles(profiles) {
     try { localStorage.setItem(PROF_KEY, JSON.stringify(profiles)); } catch (e) {}
+    // Keep cloud players in sync when linked
+    if (getSyncCode()) cloudSync({ silent: true, rerender: false });
   }
 
   function findProfile(profiles, name) {
@@ -1126,6 +1382,18 @@
   $("tabHistory").addEventListener("click", function () { showTab("history"); });
   $("tabRules").addEventListener("click", function () { showTab("rules"); });
 
+  $("exportBtn").addEventListener("click", exportHistory);
+  $("clearHistBtn").addEventListener("click", clearHistory);
+  $("syncCreateBtn").addEventListener("click", onCreateScorebook);
+  $("syncLinkBtn").addEventListener("click", onLinkScorebook);
+  $("syncNowBtn").addEventListener("click", function () { cloudSync({ silent: false }); });
+  $("syncCopyBtn").addEventListener("click", onCopySyncCode);
+  $("syncUnlinkBtn").addEventListener("click", onUnlinkScorebook);
+  $("syncCodeInput").addEventListener("keydown", function (ev) {
+    if (ev.key === "Enter") onLinkScorebook();
+  });
+  refreshSyncUI();
+
   // restore in-progress match
   try {
     var saved = localStorage.getItem(STATE_KEY);
@@ -1140,6 +1408,15 @@
       }
     }
   } catch (e) {}
+
+  // Pull/merge cloud book on boot when linked
+  if (getSyncCode()) {
+    cloudPullOnly().then(function () {
+      refreshProfileSelects();
+      if (!$("viewHistory").classList.contains("hidden")) renderHistory();
+      if (!$("viewPlayers").classList.contains("hidden")) renderProfiles();
+    });
+  }
 })();
 </script>
 </body>

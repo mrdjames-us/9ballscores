@@ -55,7 +55,20 @@ SSL is automatic once Cloudflare Pages sees the CNAME (same pattern as `apacapta
 - 9 on the Snap and Break & Run tracking
 - Score of Match (20-point) chart at match end
 - Saved players, career stats, match history (export JSON)
+- **Cloud scorebook** (Cloudflare D1) — shared sync code across devices
 - Built-in rules summary + charts
+
+## Cloud storage (history + players)
+
+| Item | Value |
+|------|--------|
+| **Store** | Cloudflare **D1** database `9ballscores` |
+| **API** | Pages Functions: `POST /api/book`, `GET|PUT /api/book/:code` |
+| **Model** | One “scorebook” per 8-char code (e.g. `ABCD-2345`) |
+| **Local cache** | Still uses `localStorage` for offline + speed |
+| **Sync** | Create/link code under **History → Cloud Scorebook**; auto-pushes after matches |
+
+The code **is** the secret — anyone with it can read/write that book. Don’t post it publicly.
 
 ## Source
 
