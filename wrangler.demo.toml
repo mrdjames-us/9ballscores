@@ -1,0 +1,8 @@
+name = "9ballscores-demo"
+compatibility_date = "2025-06-01"
+pages_build_output_dir = "."
+
+[[d1_databases]]
+binding = "DB"
+database_name = "9ballscores-demo"
+database_id = "78597a2a-ed97-4d12-b49d-c9aa84abf6b8"

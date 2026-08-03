@@ -255,7 +255,22 @@
   <header>
     <h1>APA 9-Ball Scorer</h1>
     <div class="sub">The Equalizer&reg; format &bull; points &bull; defenses &bull; history</div>
+    <div id="demoBanner" class="hidden" style="margin-top:10px;padding:8px 12px;border-radius:8px;background:#3a2c00;color:#f2c14e;font-size:.8rem;font-weight:700;letter-spacing:.04em;">
+      DEMO ENVIRONMENT — not production. Google data → <code style="font-weight:600;">nineball-demo</code> · D1 demo DB
+    </div>
   </header>
+  <script>
+    (function () {
+      var demo = /(?:^|\.)9ballscores-demo\.pages\.dev$/i.test(location.hostname)
+        || /^demo\./i.test(location.hostname)
+        || /[?&]demo=1(?:&|$)/i.test(location.search);
+      if (demo) {
+        var b = document.getElementById("demoBanner");
+        if (b) b.classList.remove("hidden");
+        document.title = "[DEMO] " + document.title;
+      }
+    })();
+  </script>
 
 <!-- ===== DJ Prints 3D house ad : pocket markers (injected) ===== -->
 <div id="pmBanner" hidden>
@@ -622,8 +637,12 @@
   var PROF_KEY = "apa9ProfilesV1";
   var SYNC_KEY = "apa9SyncCodeV1";
   var SYNC_AT_KEY = "apa9SyncAtV1";
-  // Shared with APA Captain (Firebase project apa-coach)
-  var SCORE_APP_ID = "nineball";
+  // Shared with APA Captain (Firebase project apa-coach).
+  // Demo hosts write to separate Firestore docs so live history stays clean.
+  var IS_DEMO = /(?:^|\.)9ballscores-demo\.pages\.dev$/i.test(location.hostname)
+    || /^demo\./i.test(location.hostname)
+    || /[?&]demo=1(?:&|$)/i.test(location.search);
+  var SCORE_APP_ID = IS_DEMO ? "nineball-demo" : "nineball";
   var GOOGLE_AT_KEY = "apa9GoogleSyncAtV1";
   var googleUser = null;
   var fbReady = false;
