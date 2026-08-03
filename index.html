@@ -48,7 +48,10 @@
   .btn-gold { background: var(--gold); color: #3a2c00; }
   .btn-gray { background: #dfe4e6; color: var(--ink); }
   .btn-red { background: var(--red); color: #fff; }
+  .btn-green { background: #1e8449; color: #fff; }
   .btn-outline { background: #fff; border: 2px solid var(--felt); color: var(--felt); }
+  .hist-actions-cell { display: flex; gap: 6px; flex-wrap: wrap; }
+  .hist-actions-cell button { padding: 6px 10px; font-size: .75rem; white-space: nowrap; }
 
   /* setup */
   .setup-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 12px; margin-bottom: 12px; }
@@ -389,7 +392,7 @@
 
         <div class="actions">
           <button class="btn-gray" id="missBtn">Miss<span class="hint">turn over</span></button>
-          <button class="btn-outline" id="defBtn">Defense<span class="hint">mark it &amp; turn over</span></button>
+          <button class="btn-green" id="defBtn">Defense<span class="hint">mark it &amp; turn over</span></button>
           <button class="btn-red" id="foulBtn">Foul / Scratch<span class="hint">ball in hand, turn over</span></button>
           <button class="btn-gray" id="deadBtn">Dead Ball<span class="hint">then tap the ball(s)</span></button>
           <button class="btn-gray" id="undoBtn">Undo<span class="hint">take back last</span></button>
@@ -431,7 +434,7 @@
     <div class="panel">
       <h2 class="sec">Saved Players</h2>
       <div class="career-wrap" id="profileList"></div>
-      <div class="rookie-note" style="margin:10px 0 0;">Skill level changes here carry into the next match you start. Records come from match history (by name).</div>
+      <div class="rookie-note" style="margin:10px 0 0;">Skill level changes here carry into the next match. Rename updates match history too. Delete removes the profile and all matches they played.</div>
     </div>
   </div>
 
@@ -1172,6 +1175,84 @@
       " " + d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
   }
 
+  function saveHistoryList(hist) {
+    try { localStorage.setItem(HIST_KEY, JSON.stringify(hist)); } catch (e) {}
+    if (getSyncCode()) cloudSync({ silent: true, rerender: false });
+  }
+
+  function nameKey(n) {
+    return String(n || "").trim().toLowerCase();
+  }
+
+  /** Rename a player everywhere: match history, top-run tags, and saved profiles. */
+  function renamePlayerEverywhere(oldName, newName) {
+    oldName = String(oldName || "").trim();
+    newName = String(newName || "").trim();
+    if (!oldName || !newName) return { ok: false, error: "Name required." };
+    if (oldName === newName) return { ok: true };
+    if (newName.length > 20) return { ok: false, error: "Name max 20 characters." };
+    var oldK = nameKey(oldName);
+    var newK = nameKey(newName);
+    if (oldK === newK) {
+      // Case-only change — still rewrite display names
+    } else {
+      // Block collision with an existing different player
+      var clash = false;
+      loadHistory().forEach(function (m) {
+        for (var i = 0; i < 2; i++) {
+          if (!isGuest(m, i) && nameKey(m.names[i]) === newK) clash = true;
+        }
+      });
+      loadProfiles().forEach(function (p) {
+        if (nameKey(p.name) === newK) clash = true;
+      });
+      if (clash) return { ok: false, error: "\"" + newName + "\" already exists." };
+    }
+
+    var hist = loadHistory();
+    hist.forEach(function (m) {
+      for (var i = 0; i < 2; i++) {
+        if (nameKey(m.names[i]) === oldK) m.names[i] = newName;
+      }
+      if (m.topRuns) {
+        m.topRuns.forEach(function (r) {
+          if (nameKey(r.name) === oldK) r.name = newName;
+        });
+      }
+    });
+    saveHistoryList(hist);
+
+    var profiles = loadProfiles();
+    var target = null;
+    profiles.forEach(function (p) {
+      if (nameKey(p.name) === oldK) target = p;
+    });
+    if (target) {
+      // Merge into existing profile if case-insensitive match to newName already handled as clash
+      target.name = newName;
+      saveProfiles(profiles);
+    }
+    refreshProfileSelects();
+    return { ok: true };
+  }
+
+  /** Remove a player from career history: drop all matches they appear in + profile. */
+  function deletePlayerFromHistory(name) {
+    name = String(name || "").trim();
+    if (!name) return;
+    var k = nameKey(name);
+    var hist = loadHistory().filter(function (m) {
+      var hit = false;
+      for (var i = 0; i < 2; i++) {
+        if (!isGuest(m, i) && nameKey(m.names[i]) === k) hit = true;
+      }
+      return !hit;
+    });
+    saveHistoryList(hist);
+    saveProfiles(loadProfiles().filter(function (p) { return nameKey(p.name) !== k; }));
+    refreshProfileSelects();
+  }
+
   function renderHistory() {
     var hist = loadHistory();
 
@@ -1199,14 +1280,47 @@
     if (!keys.length) {
       cs.innerHTML = '<div class="hist-empty">No matches yet — finish a match and it lands here automatically.</div>';
     } else {
-      var html = '<table class="hist"><tr><th>Player</th><th>W-L</th><th>Win %</th><th>Match Pts</th><th>Ball Pts</th><th>Defenses</th><th>B&amp;R</th><th>9-Snap</th><th>Best Run</th></tr>';
+      var html = '<table class="hist"><tr><th>Player</th><th>W-L</th><th>Win %</th><th>Match Pts</th><th>Ball Pts</th><th>Defenses</th><th>B&amp;R</th><th>9-Snap</th><th>Best Run</th><th></th></tr>';
       keys.sort(function (a, b) { return players[b].wins - players[a].wins; }).forEach(function (k) {
         var s = players[k];
-        html += "<tr><td><b>" + k + "</b></td><td>" + s.wins + "-" + (s.matches - s.wins) + "</td><td>" +
+        var show = k.replace(/&/g, "&amp;").replace(/</g, "&lt;");
+        var enc = encodeURIComponent(k);
+        html += "<tr><td><b>" + show + "</b></td><td>" + s.wins + "-" + (s.matches - s.wins) + "</td><td>" +
           Math.round(s.wins / s.matches * 100) + "%</td><td>" + s.mp + "</td><td>" + s.pts + "</td><td>" +
-          s.def + "</td><td>" + s.br + "</td><td>" + s.snap + "</td><td>" + s.bestRun + "</td></tr>";
+          s.def + "</td><td>" + s.br + "</td><td>" + s.snap + "</td><td>" + s.bestRun + "</td>" +
+          '<td><div class="hist-actions-cell">' +
+          '<button type="button" class="btn-outline" data-hist-rename="' + enc + '">Rename</button>' +
+          '<button type="button" class="btn-red" data-hist-del="' + enc + '">Delete</button>' +
+          "</div></td></tr>";
       });
       cs.innerHTML = html + "</table>";
+
+      cs.querySelectorAll("[data-hist-rename]").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          var oldN = decodeURIComponent(btn.getAttribute("data-hist-rename"));
+          var neu = window.prompt("Rename player \"" + oldN + "\" to:", oldN);
+          if (neu === null) return;
+          neu = neu.trim();
+          if (!neu) { alert("Name can't be empty."); return; }
+          var res = renamePlayerEverywhere(oldN, neu);
+          if (!res.ok) { alert(res.error || "Rename failed."); return; }
+          renderHistory();
+          if (!$("viewPlayers").classList.contains("hidden")) renderProfiles();
+        });
+      });
+      cs.querySelectorAll("[data-hist-del]").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          var n = decodeURIComponent(btn.getAttribute("data-hist-del"));
+          if (!confirm(
+            "Delete \"" + n + "\" from history?\n\n" +
+            "This removes EVERY match they played in, and their saved player profile.\n" +
+            "This cannot be undone."
+          )) return;
+          deletePlayerFromHistory(n);
+          renderHistory();
+          if (!$("viewPlayers").classList.contains("hidden")) renderProfiles();
+        });
+      });
     }
 
     // match list
@@ -1370,11 +1484,15 @@
       for (var i = 1; i <= 9; i++) {
         opts += '<option value="' + i + '"' + (i === p.sl ? " selected" : "") + ">SL-" + i + " (" + GOALS[i] + ")</option>";
       }
-      html += "<tr><td><b>" + p.name + "</b></td>" +
+      var esc = p.name.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
+      html += "<tr><td><b>" + esc + "</b></td>" +
         '<td><select data-prof-sl="' + idx + '" style="padding:6px;border:2px solid #d5dbdb;border-radius:6px;">' + opts + "</select></td>" +
         "<td>" + playerRecord(p.name) + "</td>" +
         "<td>" + (p.lastPlayed ? fmtDate(p.lastPlayed) : "&mdash;") + "</td>" +
-        '<td><button class="btn-red" data-prof-del="' + idx + '" style="padding:6px 12px;font-size:.8rem;">Delete</button></td></tr>';
+        '<td><div class="hist-actions-cell">' +
+        '<button type="button" class="btn-outline" data-prof-rename="' + idx + '">Rename</button>' +
+        '<button type="button" class="btn-red" data-prof-del="' + idx + '">Delete</button>' +
+        "</div></td></tr>";
     });
     list.innerHTML = html + "</table>";
 
@@ -1387,16 +1505,36 @@
         refreshProfileSelects();
       });
     });
+    list.querySelectorAll("[data-prof-rename]").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        var profiles2 = sortedProfiles();
+        var p = profiles2[parseInt(btn.dataset.profRename, 10)];
+        if (!p) return;
+        var neu = window.prompt("Rename player \"" + p.name + "\" to:", p.name);
+        if (neu === null) return;
+        neu = neu.trim();
+        if (!neu) { alert("Name can't be empty."); return; }
+        var res = renamePlayerEverywhere(p.name, neu);
+        if (!res.ok) { alert(res.error || "Rename failed."); return; }
+        renderProfiles();
+        if (!$("viewHistory").classList.contains("hidden")) renderHistory();
+      });
+    });
     list.querySelectorAll("[data-prof-del]").forEach(function (btn) {
       btn.addEventListener("click", function () {
         var profiles2 = sortedProfiles();
         var p = profiles2[parseInt(btn.dataset.profDel, 10)];
-        if (!confirm("Delete player \"" + p.name + "\"? (Match history is kept.)")) return;
-        saveProfiles(loadProfiles().filter(function (q) {
-          return q.name.trim().toLowerCase() !== p.name.trim().toLowerCase();
-        }));
+        if (!p) return;
+        var alsoHist = confirm(
+          "Delete player \"" + p.name + "\"?\n\n" +
+          "OK = remove profile AND all their match history\n" +
+          "Cancel = abort\n\n" +
+          "(Tip: use History → Rename if you only need a name fix.)"
+        );
+        if (!alsoHist) return;
+        deletePlayerFromHistory(p.name);
         renderProfiles();
-        refreshProfileSelects();
+        if (!$("viewHistory").classList.contains("hidden")) renderHistory();
       });
     });
   }
