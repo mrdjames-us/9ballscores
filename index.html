@@ -224,6 +224,24 @@
   .guest-check.on { color: var(--red); }
   .tag.guest { background: #95a5a6; }
 
+  .auth-panel { margin-bottom: 14px; padding-bottom: 14px; border-bottom: 1px solid var(--line); }
+  .auth-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .auth-row img.avatar {
+    width: 40px; height: 40px; border-radius: 50%; object-fit: cover;
+    border: 2px solid var(--felt);
+  }
+  .auth-meta { flex: 1; min-width: 140px; }
+  .auth-meta .auth-name { font-weight: 700; font-size: .95rem; }
+  .auth-meta .auth-email { font-size: .78rem; color: var(--muted); }
+  .auth-status { font-size: .82rem; color: var(--muted); margin-top: 8px; min-height: 1.2em; }
+  .auth-status.ok { color: var(--felt); font-weight: 600; }
+  .auth-status.err { color: var(--red); font-weight: 600; }
+  .btn-google {
+    background: #fff; color: #1c2833; border: 2px solid #d5dbdb;
+    display: inline-flex; align-items: center; gap: 8px; padding: 10px 16px; font-size: .9rem;
+  }
+  .btn-google svg { width: 18px; height: 18px; flex-shrink: 0; }
+
   @media (max-width: 560px) {
     .player-score { font-size: 4.4rem; }
     .ball { width: 44px; height: 44px; font-size: 1rem; }
@@ -441,9 +459,32 @@
   <!-- ================= HISTORY VIEW ================= -->
   <div id="viewHistory" class="hidden">
     <div class="panel">
-      <h2 class="sec">Cloud Scorebook</h2>
+      <h2 class="sec">Google account</h2>
+      <div class="auth-panel">
+        <div id="authSignedOut">
+          <div class="rookie-note" style="margin-top:0;">Sign in with the same Google account as APA Captain to save your history across devices.</div>
+          <button type="button" class="btn-google" id="googleSignInBtn">
+            <svg viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+            Sign in with Google
+          </button>
+        </div>
+        <div id="authSignedIn" class="hidden">
+          <div class="auth-row">
+            <img class="avatar" id="authAvatar" alt="" width="40" height="40">
+            <div class="auth-meta">
+              <div class="auth-name" id="authName">—</div>
+              <div class="auth-email" id="authEmail">—</div>
+            </div>
+            <button type="button" class="btn-gray" id="googleSignOutBtn" style="padding:9px 14px;font-size:.85rem;">Sign out</button>
+            <button type="button" class="btn-gold" id="googleSyncBtn" style="padding:9px 14px;font-size:.85rem;">Sync account</button>
+          </div>
+        </div>
+        <div class="auth-status" id="authStatus"></div>
+      </div>
+
+      <h2 class="sec">Shared scorebook (optional)</h2>
       <div id="syncLinked" class="hidden">
-        <div class="rookie-note" style="margin-top:0;">Sync code (enter this on other devices):</div>
+        <div class="rookie-note" style="margin-top:0;">Sync code (enter this on other devices — no login required):</div>
         <div class="sync-code-display" id="syncCodeShow">————</div>
         <div class="sync-btns">
           <button class="btn-gold" id="syncNowBtn">Sync Now</button>
@@ -465,8 +506,9 @@
       </div>
       <div class="sync-status" id="syncStatus"></div>
       <div class="sync-help">
-        Creates a shared cloud scorebook for players + match history (Cloudflare D1).
-        Same code on phone and laptop keeps everything in sync. Works offline; syncs when you&rsquo;re back online.
+        <strong>Google</strong> saves <em>your</em> history (same account as APA Captain).
+        <strong>Sync codes</strong> share a scorebook on a bar phone without logging in.
+        Local storage always works offline.
       </div>
     </div>
     <div class="panel">
@@ -568,6 +610,9 @@
   </div>
 </div>
 
+<script src="https://www.gstatic.com/firebasejs/11.6.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/11.6.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/11.6.0/firebase-firestore-compat.js"></script>
 <script>
 (function () {
   "use strict";
@@ -577,6 +622,11 @@
   var PROF_KEY = "apa9ProfilesV1";
   var SYNC_KEY = "apa9SyncCodeV1";
   var SYNC_AT_KEY = "apa9SyncAtV1";
+  // Shared with APA Captain (Firebase project apa-coach)
+  var SCORE_APP_ID = "nineball";
+  var GOOGLE_AT_KEY = "apa9GoogleSyncAtV1";
+  var googleUser = null;
+  var fbReady = false;
 
   var GOALS = {1:14, 2:19, 3:25, 4:31, 5:38, 6:46, 7:55, 8:65, 9:75};
   // Score of Match chart: for the loser's SL, lower bound of points earned
@@ -966,6 +1016,262 @@
     el.className = "sync-status" + (kind ? " " + kind : "");
   }
 
+  // ---------------- Google account (Firebase / APA Captain project) ----------------
+  function setAuthStatus(msg, kind) {
+    var el = $("authStatus");
+    if (!el) return;
+    el.textContent = msg || "";
+    el.className = "auth-status" + (kind ? " " + kind : "");
+  }
+
+  function initFirebase() {
+    if (typeof firebase === "undefined") {
+      setAuthStatus("Google sign-in unavailable (Firebase failed to load).", "err");
+      return;
+    }
+    try {
+      if (!firebase.apps.length) {
+        firebase.initializeApp({
+          apiKey: "AIzaSyB9USmNYqxKu6_tNXw0Go-ewIAGjy5gdYs",
+          authDomain: "apa-coach.firebaseapp.com",
+          projectId: "apa-coach",
+          storageBucket: "apa-coach.firebasestorage.app",
+          messagingSenderId: "672777910668",
+          appId: "1:672777910668:web:ec27fe86e1f32dcc93bea9"
+        });
+      }
+      fbReady = true;
+      firebase.auth().onAuthStateChanged(function (user) {
+        googleUser = user;
+        refreshAuthUI();
+        if (user) {
+          pullGoogleBook({ silent: true }).then(function () {
+            if (!$("viewHistory").classList.contains("hidden")) renderHistory();
+            refreshProfileSelects();
+            if (!$("viewPlayers").classList.contains("hidden")) renderProfiles();
+          });
+        }
+      });
+    } catch (e) {
+      setAuthStatus("Firebase init failed: " + (e.message || e), "err");
+    }
+  }
+
+  function refreshAuthUI() {
+    var out = $("authSignedOut");
+    var inn = $("authSignedIn");
+    if (!out || !inn) return;
+    if (googleUser) {
+      out.classList.add("hidden");
+      inn.classList.remove("hidden");
+      $("authName").textContent = googleUser.displayName || "Signed in";
+      $("authEmail").textContent = googleUser.email || googleUser.uid;
+      var av = $("authAvatar");
+      if (googleUser.photoURL) {
+        av.src = googleUser.photoURL;
+        av.style.display = "";
+      } else {
+        av.removeAttribute("src");
+        av.style.display = "none";
+      }
+      try {
+        var at = localStorage.getItem(GOOGLE_AT_KEY);
+        if (at) setAuthStatus("Account last synced " + fmtDate(at), "ok");
+        else setAuthStatus("Signed in — syncing your scorebook…", "ok");
+      } catch (e) {
+        setAuthStatus("Signed in.", "ok");
+      }
+    } else {
+      inn.classList.add("hidden");
+      out.classList.remove("hidden");
+      setAuthStatus("");
+    }
+  }
+
+  function googleBookRef() {
+    if (!fbReady || !googleUser) return null;
+    return firebase.firestore()
+      .collection("users").doc(googleUser.uid)
+      .collection("scorebooks").doc(SCORE_APP_ID);
+  }
+
+  function clientMergeProfiles(server, client) {
+    var map = {};
+    function ingest(list) {
+      (list || []).forEach(function (p) {
+        if (!p || !p.name) return;
+        var key = p.name.trim().toLowerCase();
+        var prev = map[key];
+        if (!prev) { map[key] = Object.assign({}, p); return; }
+        var prevT = Date.parse(prev.lastPlayed || prev.created || 0) || 0;
+        var nextT = Date.parse(p.lastPlayed || p.created || 0) || 0;
+        if (nextT >= prevT) {
+          map[key] = Object.assign({}, prev, p, {
+            name: (p.name && p.name.trim()) || prev.name,
+            sl: p.sl != null ? p.sl : prev.sl,
+            created: prev.created || p.created,
+            lastPlayed: p.lastPlayed || prev.lastPlayed || null
+          });
+        } else {
+          map[key] = Object.assign({}, p, prev, {
+            name: (prev.name && prev.name.trim()) || p.name,
+            sl: prev.sl != null ? prev.sl : p.sl,
+            created: prev.created || p.created
+          });
+        }
+      });
+    }
+    ingest(server);
+    ingest(client);
+    return Object.keys(map).map(function (k) { return map[k]; }).sort(function (a, b) {
+      return a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
+    });
+  }
+
+  function clientMatchId(m) {
+    if (m && m.id) return String(m.id);
+    return [
+      m.date || "",
+      (m.names || []).join("|"),
+      (m.scores || []).join("-"),
+      (m.matchPts || []).join("-"),
+      m.innings != null ? m.innings : ""
+    ].join("::");
+  }
+
+  function clientMergeHistory(server, client) {
+    var map = {};
+    function ingest(list) {
+      (list || []).forEach(function (m) {
+        if (!m) return;
+        var id = clientMatchId(m);
+        var copy = Object.assign({}, m, { id: m.id || id });
+        var prev = map[id];
+        if (!prev) { map[id] = copy; return; }
+        var prevT = Date.parse(prev.date || 0) || 0;
+        var nextT = Date.parse(copy.date || 0) || 0;
+        map[id] = nextT >= prevT ? copy : prev;
+      });
+    }
+    ingest(server);
+    ingest(client);
+    return Object.keys(map).map(function (k) { return map[k]; }).sort(function (a, b) {
+      return (Date.parse(b.date || 0) || 0) - (Date.parse(a.date || 0) || 0);
+    }).slice(0, 500);
+  }
+
+  async function pullGoogleBook(opts) {
+    opts = opts || {};
+    var ref = googleBookRef();
+    if (!ref) return null;
+    try {
+      if (!opts.silent) setAuthStatus("Loading account scorebook…");
+      var snap = await ref.get();
+      var remote = snap.exists ? snap.data() : { profiles: [], history: [] };
+      var profiles = clientMergeProfiles(remote.profiles || [], loadProfiles());
+      var history = clientMergeHistory(remote.history || [], loadHistory());
+      try {
+        localStorage.setItem(PROF_KEY, JSON.stringify(profiles));
+        localStorage.setItem(HIST_KEY, JSON.stringify(history));
+      } catch (e) {}
+      var now = new Date().toISOString();
+      await ref.set({
+        profiles: profiles,
+        history: history,
+        updatedAt: now,
+        app: SCORE_APP_ID
+      }, { merge: true });
+      try { localStorage.setItem(GOOGLE_AT_KEY, now); } catch (e) {}
+      if (!opts.silent) setAuthStatus("Account synced " + fmtDate(now), "ok");
+      else refreshAuthUI();
+      return { profiles: profiles, history: history, updatedAt: now };
+    } catch (e) {
+      var msg = e.message || String(e);
+      if (msg.indexOf("permission") !== -1 || e.code === "permission-denied") {
+        msg = "Permission denied — deploy Firestore rules for users/{uid}/scorebooks (see FIREBASE.md).";
+      }
+      if (msg.indexOf("unauthorized-domain") !== -1) {
+        msg = "This domain is not authorized in Firebase Auth. Add it under Authentication → Settings.";
+      }
+      if (!opts.silent) setAuthStatus(msg, "err");
+      return null;
+    }
+  }
+
+  async function pushGoogleBook(opts) {
+    opts = opts || {};
+    var ref = googleBookRef();
+    if (!ref) return null;
+    try {
+      var now = new Date().toISOString();
+      var payload = {
+        profiles: loadProfiles(),
+        history: loadHistory(),
+        updatedAt: now,
+        app: SCORE_APP_ID
+      };
+      if (opts.replace) {
+        await ref.set(payload);
+      } else {
+        var snap = await ref.get();
+        if (snap.exists) {
+          var remote = snap.data() || {};
+          payload.profiles = clientMergeProfiles(remote.profiles || [], payload.profiles);
+          payload.history = clientMergeHistory(remote.history || [], payload.history);
+        }
+        await ref.set(payload, { merge: true });
+      }
+      try {
+        localStorage.setItem(PROF_KEY, JSON.stringify(payload.profiles));
+        localStorage.setItem(HIST_KEY, JSON.stringify(payload.history));
+        localStorage.setItem(GOOGLE_AT_KEY, now);
+      } catch (e) {}
+      if (!opts.silent) setAuthStatus("Account saved " + fmtDate(now), "ok");
+      return payload;
+    } catch (e) {
+      if (!opts.silent) setAuthStatus(e.message || "Account save failed", "err");
+      return null;
+    }
+  }
+
+  async function googleSignIn() {
+    if (!fbReady) { setAuthStatus("Firebase not ready.", "err"); return; }
+    setAuthStatus("Opening Google sign-in…");
+    var provider = new firebase.auth.GoogleAuthProvider();
+    try {
+      await firebase.auth().signInWithPopup(provider);
+    } catch (e) {
+      if (e.code === "auth/popup-blocked" || e.code === "auth/operation-not-supported-in-this-environment") {
+        try {
+          await firebase.auth().signInWithRedirect(provider);
+          return;
+        } catch (e2) {
+          setAuthStatus(e2.message || "Sign-in failed", "err");
+          return;
+        }
+      }
+      if (e.code === "auth/popup-closed-by-user") {
+        setAuthStatus("Sign-in cancelled.");
+        return;
+      }
+      if (e.code === "auth/unauthorized-domain") {
+        setAuthStatus("Add this site to Firebase authorized domains (see FIREBASE.md).", "err");
+        return;
+      }
+      setAuthStatus(e.message || "Sign-in failed", "err");
+    }
+  }
+
+  async function googleSignOut() {
+    if (!fbReady) return;
+    try {
+      await firebase.auth().signOut();
+      setAuthStatus("Signed out. Local history on this device is unchanged.");
+    } catch (e) {
+      setAuthStatus(e.message || "Sign-out failed", "err");
+    }
+  }
+
   function refreshSyncUI() {
     var code = getSyncCode();
     var linked = !!code;
@@ -1021,6 +1327,16 @@
   async function cloudSync(opts) {
     opts = opts || {};
     var code = getSyncCode();
+    // Also push Google account when signed in (even without D1 code)
+    if (!code && googleUser) {
+      var g = await pushGoogleBook({ silent: opts.silent, replace: !!opts.replace });
+      if (opts.rerender !== false) {
+        renderHistory();
+        refreshProfileSelects();
+        if (!$("viewPlayers").classList.contains("hidden")) renderProfiles();
+      }
+      return g;
+    }
     if (!code) {
       if (!opts.silent) setSyncStatus("Not linked to a cloud scorebook.", "err");
       return null;
@@ -1033,6 +1349,7 @@
         replace: !!opts.replace
       });
       applyCloudBook(book);
+      if (googleUser) await pushGoogleBook({ silent: true, replace: !!opts.replace });
       if (!opts.silent) setSyncStatus("Synced " + fmtDate(book.updatedAt || new Date().toISOString()), "ok");
       refreshSyncUI();
       if (opts.rerender !== false) {
@@ -1165,8 +1482,9 @@
         .map(function (r) { return { name: state.names[r.p], len: r.len }; })
     });
     try { localStorage.setItem(HIST_KEY, JSON.stringify(hist)); } catch (e) {}
-    // Fire-and-forget cloud push after match
-    cloudSync({ silent: true, rerender: false });
+    // Fire-and-forget cloud push after match (D1 code and/or Google account)
+    if (getSyncCode() || googleUser) cloudSync({ silent: true, rerender: false });
+    else if (googleUser) pushGoogleBook({ silent: true });
   }
 
   function fmtDate(iso) {
@@ -1178,6 +1496,7 @@
   function saveHistoryList(hist) {
     try { localStorage.setItem(HIST_KEY, JSON.stringify(hist)); } catch (e) {}
     if (getSyncCode()) cloudSync({ silent: true, rerender: false });
+    if (googleUser) pushGoogleBook({ silent: true });
   }
 
   function nameKey(n) {
@@ -1363,9 +1682,10 @@
     try { localStorage.removeItem(HIST_KEY); } catch (e) {}
     renderHistory();
     // If linked, replace cloud history with empty (keep profiles)
-    if (getSyncCode()) {
+    if (getSyncCode() || googleUser) {
       cloudSync({ replace: true, silent: false }).then(function () {
-        setSyncStatus("Cloud history cleared.", "ok");
+        if (getSyncCode()) setSyncStatus("Cloud history cleared.", "ok");
+        if (googleUser) setAuthStatus("Account history cleared.", "ok");
       });
     }
   }
@@ -1379,6 +1699,7 @@
     try { localStorage.setItem(PROF_KEY, JSON.stringify(profiles)); } catch (e) {}
     // Keep cloud players in sync when linked
     if (getSyncCode()) cloudSync({ silent: true, rerender: false });
+    if (googleUser) pushGoogleBook({ silent: true });
   }
 
   function findProfile(profiles, name) {
@@ -1699,7 +2020,17 @@
   $("syncCodeInput").addEventListener("keydown", function (ev) {
     if (ev.key === "Enter") onLinkScorebook();
   });
+  $("googleSignInBtn").addEventListener("click", googleSignIn);
+  $("googleSignOutBtn").addEventListener("click", googleSignOut);
+  $("googleSyncBtn").addEventListener("click", function () {
+    pullGoogleBook({ silent: false }).then(function () {
+      renderHistory();
+      refreshProfileSelects();
+      if (!$("viewPlayers").classList.contains("hidden")) renderProfiles();
+    });
+  });
   refreshSyncUI();
+  initFirebase();
 
   // restore in-progress match
   try {
@@ -1716,7 +2047,7 @@
     }
   } catch (e) {}
 
-  // Pull/merge cloud book on boot when linked
+  // Pull/merge cloud book on boot when linked (D1 code). Google pull is handled by onAuthStateChanged.
   if (getSyncCode()) {
     cloudPullOnly().then(function () {
       refreshProfileSelects();
