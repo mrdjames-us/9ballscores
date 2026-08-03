@@ -1987,6 +1987,36 @@
   fillSlSelect($("p2sl"), 4);
   fillSlSelect($("npSl"), 4);
   refreshProfileSelects();
+
+  // Prefill from Pool Hub / deep link: ?p1=&p2=&p1sl=&p2sl=
+  (function applyQueryPrefill() {
+    try {
+      var q = new URLSearchParams(location.search);
+      var p1 = (q.get("p1") || "").trim();
+      var p2 = (q.get("p2") || "").trim();
+      var p1sl = parseInt(q.get("p1sl") || "", 10);
+      var p2sl = parseInt(q.get("p2sl") || "", 10);
+      if (p1) {
+        $("p1name").value = p1.slice(0, 20);
+        $("p1profile").value = "";
+      }
+      if (p2) {
+        $("p2name").value = p2.slice(0, 20);
+        $("p2profile").value = "";
+      }
+      if (p1sl >= 1 && p1sl <= 9) $("p1sl").value = String(p1sl);
+      if (p2sl >= 1 && p2sl <= 9) $("p2sl").value = String(p2sl);
+      if (p1 || p2) {
+        if (typeof updGoal === "function") updGoal();
+        if (typeof updateLagHints === "function") updateLagHints();
+      }
+      // #history deep-link from hub
+      if (location.hash === "#history" && typeof showTab === "function") {
+        setTimeout(function () { showTab("history"); }, 0);
+      }
+    } catch (e) {}
+  })();
+
   $("p1profile").addEventListener("change", function () {
     if ($("p1guest").checked) $("p1guest").checked = false;
     onGuestToggle(0);
