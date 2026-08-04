@@ -586,9 +586,10 @@
       <h3>Break, Break-and-Run, 9 on the Snap</h3>
       <ul>
         <li>The break must be an open break. Balls made on a legal break count for the breaker and the breaker keeps shooting.</li>
-        <li><strong>9 on the Snap:</strong> pocketing the 9 on the break stroke wins the rack instantly (2 pts + any other balls that fell).</li>
+        <li><strong>9 on the Snap:</strong> pocketing the 9 on the break stroke wins the rack instantly (2 pts + any other balls that fell). In this app, marking the 9 with <strong>no other balls marked yet</strong> asks Snap vs early 9; if other balls were already marked and the breaker never lost the table, you get Snap vs Break-and-Run.</li>
+        <li><strong>9 made early:</strong> the 9 drops before the rest of the rack is cleared (combo, carom, etc.) — rack ends; leftover balls go dead. Not counted as a snap.</li>
         <li><strong>Break and Run:</strong> breaking and clearing the entire rack without the opponent ever getting to the table.</li>
-        <li>Both are tracked separately on the scoresheet (and in this app) — no innings are charged on those racks.</li>
+        <li>Snap and B&amp;R are tracked separately on the scoresheet (and in this app).</li>
       </ul>
 
       <h3>Score of Match — 20 Match Points</h3>
@@ -613,14 +614,14 @@
   </div>
 </div>
 
-<!-- snap / B&R modal -->
+<!-- 9-ball end-of-rack modal: snap vs early, or snap vs B&R -->
 <div class="overlay" id="nineOverlay">
   <div class="modal">
-    <h3>💥 Rack over — clean sweep!</h3>
-    <p id="nineText">The opponent never got to the table this rack. Was the 9 pocketed on the break stroke itself?</p>
+    <h3 id="nineTitle">💥 9-ball pocketed</h3>
+    <p id="nineText">How was the 9 made?</p>
     <div class="btns">
-      <button class="btn-red" id="snapYes">9 on the Snap (on the break)</button>
-      <button class="btn-gold" id="snapNo">Break &amp; Run (ran the rack)</button>
+      <button class="btn-red" id="snapYes">9 on the Snap</button>
+      <button class="btn-gold" id="snapNo">Break &amp; Run</button>
     </div>
   </div>
 </div>
@@ -884,23 +885,50 @@
 
     var won = state.scores[p] >= state.goals[p];
     if (b === 9) {
+      // Count balls already off BEFORE marking leftovers dead.
+      // 0 off + 9 made → ask snap vs early (not B&R — only the 9 scored so far).
+      var alreadyOff = 0;
+      for (var i = 1; i <= 8; i++) {
+        if (state.balls[i] !== "table") alreadyOff += 1;
+      }
       // rack over: remaining balls are dead
       var leftDead = 0;
-      for (var i = 1; i <= 8; i++) {
-        if (state.balls[i] === "table") { state.balls[i] = "dead"; leftDead += 1; }
+      for (var j = 1; j <= 8; j++) {
+        if (state.balls[j] === "table") { state.balls[j] = "dead"; leftDead += 1; }
       }
       if (leftDead) {
         state.deadTotal += leftDead;
         addLog(leftDead + " ball(s) left on the table go dead.");
       }
       var cleanSweep = (p === state.breaker && !state.opponentShot);
-      if (cleanSweep) {
-        // ask snap vs B&R, then finish rack / match
-        pendingNine = { p: p, won: won };
+
+      // Case 1: nothing else marked yet — 9 alone (or mark 9 first). Snap or early combo?
+      if (alreadyOff === 0) {
+        pendingNine = { p: p, won: won, mode: "earlyOrSnap" };
+        $("nineTitle").textContent = "💥 9-ball pocketed";
+        $("nineText").textContent =
+          "No other balls were marked this rack. Was the 9 made on the break stroke (9 on the Snap), or made early later (combo / carom / etc.)?";
+        $("snapYes").textContent = "9 on the Snap";
+        $("snapNo").textContent = "9 made early";
         $("nineOverlay").classList.add("show");
         render();
         return;
       }
+
+      // Case 2: breaker never let opponent shoot — full clean sweep path
+      if (cleanSweep) {
+        pendingNine = { p: p, won: won, mode: "snapOrBr" };
+        $("nineTitle").textContent = "💥 Rack over — clean sweep!";
+        $("nineText").textContent =
+          "The opponent never got to the table this rack. Was the 9 pocketed on the break stroke itself?";
+        $("snapYes").textContent = "9 on the Snap (on the break)";
+        $("snapNo").textContent = "Break & Run (ran the rack)";
+        $("nineOverlay").classList.add("show");
+        render();
+        return;
+      }
+
+      // Case 3: normal early 9 after both sides have been active — no special tag
       finishRack(p, won);
       return;
     }
@@ -914,9 +942,12 @@
     pendingNine = null;
     $("nineOverlay").classList.remove("show");
     if (!ctx) return;
+    var mode = ctx.mode || "snapOrBr";
     if (isSnap) {
       state.snaps[ctx.p] += 1;
       addLog("💥 <b>" + pname(ctx.p) + " — 9 ON THE SNAP!</b>");
+    } else if (mode === "earlyOrSnap") {
+      addLog("⚡ <b>" + pname(ctx.p) + " — 9 made early</b> (not on the snap).");
     } else {
       state.brs[ctx.p] += 1;
       addLog("🔥 <b>" + pname(ctx.p) + " — BREAK AND RUN!</b>");
