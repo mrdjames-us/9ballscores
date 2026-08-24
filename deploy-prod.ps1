@@ -14,10 +14,8 @@ if ($ok -ne "PROD") {
   exit 1
 }
 
-if (-not $env:CLOUDFLARE_API_TOKEN) {
-  $toml = Get-Content "$env:APPDATA\xdg.config\.wrangler\config\default.toml" -Raw -ErrorAction SilentlyContinue
-  if ($toml -match 'oauth_token = "([^"]+)"') { $env:CLOUDFLARE_API_TOKEN = $matches[1] }
-}
+# Do not stuff wrangler's oauth_token into CLOUDFLARE_API_TOKEN.
+# That token is not an API token and Pages deploy then fails with 10000/9109.
 
 Set-Location $PSScriptRoot
 wrangler pages deploy . --project-name=9ballscores --branch=main --commit-dirty=true

@@ -1,0 +1,3 @@
+# Allow Google OAuth popups (same-origin would break signInWithPopup).
+/*
+  Cross-Origin-Opener-Policy: same-origin-allow-popups
