@@ -1,0 +1,3 @@
+# Old jamesnetworks host → www canonical (domain cutover). Host-specific only.
+https://9ballscores.jamesnetworks.net/*  https://www.9ballscores.com/:splat  301
+https://9ballscores.jamesnetworks.net    https://www.9ballscores.com/        301
