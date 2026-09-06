@@ -1,3 +1,2 @@
-# Old jamesnetworks host → www canonical (domain cutover). Host-specific only.
-https://9ballscores.jamesnetworks.net/*  https://www.9ballscores.com/:splat  301
-https://9ballscores.jamesnetworks.net    https://www.9ballscores.com/        301
+# NOTE: Cloudflare Pages _redirects does NOT support domain-level / host-specific redirects.
+# Host cutover is handled in functions/_middleware.js (9ballscores.jamesnetworks.net → www).
