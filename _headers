@@ -1,3 +1,7 @@
 # Allow Google OAuth popups (same-origin would break signInWithPopup).
 /*
   Cross-Origin-Opener-Policy: same-origin-allow-popups
+
+# Serve ads.txt as plain text (AdSense crawler).
+/ads.txt
+  Content-Type: text/plain; charset=utf-8

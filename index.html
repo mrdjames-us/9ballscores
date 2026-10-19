@@ -3,7 +3,22 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>APA 9-Ball Scorer</title>
+<title>9-Ball Scores</title>
+<meta name="description" content="Free 9-ball pool scorekeeper for your phone. Track points, defensive shots, 9 on the snap, break-and-runs and the 20-point match split, with player profiles and match history.">
+<link rel="canonical" href="https://www.9ballscores.com/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="9-Ball Scores">
+<meta property="og:title" content="9-Ball Scores">
+<meta property="og:description" content="Free 9-ball pool scorekeeper: points, defenses, match points and history, right on your phone.">
+<meta property="og:url" content="https://www.9ballscores.com/">
+<meta property="og:image" content="https://www.9ballscores.com/og-cover.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="9-Ball Scores">
+<meta name="twitter:description" content="Free 9-ball pool scorekeeper: points, defenses, match points and history, right on your phone.">
+<meta name="twitter:image" content="https://www.9ballscores.com/og-cover.jpg">
+<!-- Google AdSense (also the site-verification snippet). Manual unit only: Auto ads stay OFF in the AdSense console. -->
+<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-6101239860944424"
+     crossorigin="anonymous"></script>
 <!-- Umami analytics (self-hosted on PlexServ via stats.aiformissouri.com)
      Create a website in Umami for https://9ballscores.jamesnetworks.net and paste the UUID below.
      Do NOT reuse AIforMO / JN / APA Captain website IDs. -->
@@ -220,6 +235,29 @@
 
   .hidden { display: none !important; }
 
+  /* footer + feedback */
+  .site-footer {
+    text-align: center; color: rgba(245,240,230,.75); font-size: .82rem;
+    padding: 10px 0 24px; line-height: 1.8;
+  }
+  .site-footer a, .site-footer button.linkish {
+    color: var(--cream); text-decoration: underline; text-underline-offset: 2px;
+    background: none; border: 0; padding: 0; font: inherit; font-weight: 400; margin: 0 8px; cursor: pointer;
+  }
+  .site-footer button.linkish:active { transform: none; }
+  .fb-modal { text-align: left; }
+  .fb-modal h3, .fb-modal > p { text-align: center; }
+  .fb-modal label { display: block; font-weight: 600; font-size: .85rem; margin: 10px 0 4px; }
+  .fb-modal .opt { font-weight: 400; color: var(--muted); }
+  .fb-modal textarea, .fb-modal input[type=email] {
+    width: 100%; padding: 10px; border: 2px solid #d5dbdb; border-radius: 8px; font: inherit; font-size: .95rem;
+  }
+  .fb-modal textarea { resize: vertical; }
+  .fb-modal .btns { margin-top: 12px; }
+  .fb-status { font-size: .85rem; min-height: 1.2em; margin-top: 8px; color: var(--muted); }
+  .fb-status.ok { color: var(--felt); font-weight: 600; }
+  .fb-status.err { color: var(--red); font-weight: 600; }
+
   .guest-check {
     display: flex; align-items: center; gap: 8px; margin-top: 8px;
     font-size: .8rem; color: var(--muted); font-weight: 600; cursor: pointer; user-select: none;
@@ -262,8 +300,8 @@
 <body>
 <div class="wrap">
   <header>
-    <h1>APA 9-Ball Scorer</h1>
-    <div class="sub">The Equalizer&reg; format &bull; points &bull; defenses &bull; history</div>
+    <h1>9-Ball Scores</h1>
+    <div class="sub">Points &bull; defenses &bull; history</div>
     <div id="demoBanner" class="hidden" style="margin-top:10px;padding:8px 12px;border-radius:8px;background:#3a2c00;color:#f2c14e;font-size:.8rem;font-weight:700;letter-spacing:.04em;">
       DEMO ENVIRONMENT — not production. Google data → <code style="font-weight:600;">nineball-demo</code> · D1 demo DB
     </div>
@@ -281,59 +319,45 @@
     })();
   </script>
 
-<!-- ===== DJ Prints 3D house ad : pocket markers (injected) ===== -->
-<div id="pmBanner" hidden>
-  <img id="pmImg" src="https://djprints3d.com/img/marker_7.png"
-       alt="Custom 8-ball pocket marker" width="72" height="72" loading="lazy">
-  <div id="pmCopy">
-    <strong>Custom 8-ball pocket markers</strong>
-    <span>Your saying, your team colors. Team of 8 with your name on it &mdash; $40.</span>
-  </div>
-  <a id="pmCta" href="https://djprints3d.com/?utm_source=9ballscores&amp;utm_medium=banner&amp;utm_campaign=house"
-     target="_blank" rel="noopener">Shop&nbsp;&rarr;</a>
-  <button id="pmX" type="button" aria-label="Dismiss">&times;</button>
-</div>
+<!-- ===== Top ad slot: one manual AdSense display unit (no Auto ads) ===== -->
 <style>
-#pmBanner{display:none;align-items:center;gap:14px;position:relative;
-  margin:0 0 16px;padding:12px 44px 12px 14px;border-radius:12px;
-  background:linear-gradient(100deg,#0d3f28,#0e5c3a 60%,#0d3f28);
-  border:1px solid rgba(212,169,66,.45);
-  box-shadow:0 6px 18px rgba(0,0,0,.28);
-  font-family:"Segoe UI",system-ui,-apple-system,sans-serif}
-#pmBanner[data-on="1"]{display:flex}
-#pmImg{width:64px;height:64px;flex:0 0 auto;filter:drop-shadow(0 3px 6px rgba(0,0,0,.45))}
-#pmCopy{flex:1 1 auto;min-width:0;line-height:1.35}
-#pmCopy strong{display:block;color:#f5f0e6;font-size:15px;letter-spacing:.01em}
-#pmCopy span{display:block;color:#c9d8ce;font-size:12.5px;margin-top:2px}
-#pmCta{flex:0 0 auto;background:#d4a942;color:#1c2833;text-decoration:none;
-  font-weight:700;font-size:13.5px;padding:9px 16px;border-radius:7px;white-space:nowrap;
-  transition:transform .12s,background .12s}
-#pmCta:hover{background:#e8bf5d;transform:translateY(-1px)}
-#pmX{position:absolute;top:6px;right:8px;background:none;border:0;cursor:pointer;
-  color:#8fa89a;font-size:20px;line-height:1;padding:2px 6px;border-radius:5px}
-#pmX:hover{color:#f5f0e6;background:rgba(255,255,255,.08)}
-@media(max-width:560px){
-  #pmBanner{gap:10px;padding:10px 38px 10px 10px}
-  #pmImg{width:46px;height:46px}
-  #pmCopy strong{font-size:13.5px}
-  #pmCopy span{font-size:11.5px}
-  #pmCta{padding:8px 12px;font-size:12.5px}
-}
+  /* Fixed box per breakpoint so the page never shifts when the ad loads. */
+  .ad-top { margin: 0 auto 18px; text-align: center; }
+  .ad-top .ad-label {
+    font-size: .62rem; letter-spacing: 1.5px; text-transform: uppercase;
+    color: rgba(245,240,230,.55); margin-bottom: 3px;
+  }
+  .ad-top ins.adsbygoogle { display: inline-block; width: 320px; height: 100px; }
+  @media (min-width: 500px) { .ad-top ins.adsbygoogle { width: 468px; height: 60px; } }
+  @media (min-width: 760px) { .ad-top ins.adsbygoogle { width: 728px; height: 90px; } }
+  /* Collapse the whole slot when Google reports no fill. */
+  .ad-top:has(ins[data-ad-status="unfilled"]) { display: none; }
 </style>
+<div class="ad-top hidden" id="adTop" aria-label="Advertisement">
+  <div class="ad-label">Advertisement</div>
+  <ins class="adsbygoogle"
+       data-ad-client="ca-pub-6101239860944424"
+       data-ad-slot="REPLACE"></ins>
+</div>
 <script>
-(function(){
-  var b=document.getElementById('pmBanner');
-  if(!b) return;
-  var KEY='pm-banner-dismissed-v1', hide=0;
-  try{ hide = localStorage.getItem(KEY)==='1'; }catch(e){}
-  if(!hide){ b.hidden=false; b.setAttribute('data-on','1'); }
-  document.getElementById('pmX').addEventListener('click',function(){
-    b.removeAttribute('data-on'); b.hidden=true;
-    try{ localStorage.setItem(KEY,'1'); }catch(e){}
-  });
-})();
+  (function () {
+    var box = document.getElementById("adTop");
+    var ins = box && box.querySelector("ins.adsbygoogle");
+    // Stay collapsed until a real numeric slot ID replaces the placeholder.
+    if (!ins || !/^\d+$/.test(ins.getAttribute("data-ad-slot") || "")) return;
+    box.classList.remove("hidden");
+    function collapse() { box.classList.add("hidden"); }
+    try { (window.adsbygoogle = window.adsbygoogle || []).push({}); } catch (e) { collapse(); return; }
+    // Fallback for browsers without :has(), and for blocked ad scripts.
+    new MutationObserver(function () {
+      if (ins.getAttribute("data-ad-status") === "unfilled") collapse();
+    }).observe(ins, { attributes: true, attributeFilter: ["data-ad-status"] });
+    setTimeout(function () {
+      if (!ins.getAttribute("data-ad-status") && !ins.querySelector("iframe")) collapse();
+    }, 8000);
+  })();
 </script>
-<!-- ===== end house ad ===== -->
+<!-- ===== end top ad slot ===== -->
 
 
   <div class="tabs">
@@ -531,7 +555,7 @@
       </div>
       <div class="sync-status" id="syncStatus"></div>
       <div class="sync-help">
-        <strong>Google</strong> saves <em>your</em> history (same account as APA Captain). First sign-in on a phone that already has matches keeps those matches.
+        <strong>Google</strong> saves <em>your</em> history across devices. First sign-in on a phone that already has matches keeps those matches.
         <strong>Sync codes</strong> share a scorebook on a bar phone without logging in.
         Local storage always works offline.
       </div>
@@ -556,9 +580,9 @@
       <h3>The Game</h3>
       <ul>
         <li>9-Ball is played with balls 1&ndash;9. The cue ball must contact the <strong>lowest-numbered ball on the table first</strong>, but balls may be pocketed in any order off a legal hit (combos, caroms, kisses all count).</li>
-        <li><strong>Nothing is called</strong> in APA 9-Ball — any ball that drops on a legal stroke counts, slop included.</li>
+        <li><strong>Nothing is called</strong> in this format — any ball that drops on a legal stroke counts, slop included.</li>
         <li>Winner of the lag shoots first. The <strong>winner of each rack breaks the next one</strong>.</li>
-        <li>There is <strong>no push-out</strong> and <strong>no three-foul rule</strong> in APA play.</li>
+        <li>There is <strong>no push-out</strong> and <strong>no three-foul rule</strong>.</li>
       </ul>
 
       <h3>Scoring — It&rsquo;s a Points Game</h3>
@@ -619,8 +643,88 @@
         </table>
       </div>
 
-      <p style="margin-top:12px;color:var(--muted);font-size:.8rem;">Summary of the APA/CPA 9-Ball Equalizer&reg; format per the official APA scoresheet and rules.poolplayers.com. Local league operators&rsquo; rulings prevail.</p>
+      <p style="margin-top:12px;color:var(--muted);font-size:.8rem;">Summary of the handicapped 9-ball points format this scorer follows. Your league&rsquo;s official rules and local rulings always prevail.</p>
     </div>
+  </div>
+
+  <!-- ===== DJ Prints 3D house ad : pocket markers (injected) ===== -->
+  <div id="pmBanner" hidden>
+    <img id="pmImg" src="https://djprints3d.com/img/marker_7.png"
+         alt="Custom 8-ball pocket marker" width="72" height="72" loading="lazy">
+    <div id="pmCopy">
+      <strong>Custom 8-ball pocket markers</strong>
+      <span>Your saying, your team colors. Team of 8 with your name on it &mdash; $40.</span>
+    </div>
+    <a id="pmCta" href="https://djprints3d.com/?utm_source=9ballscores&amp;utm_medium=banner&amp;utm_campaign=house"
+       target="_blank" rel="noopener">Shop&nbsp;&rarr;</a>
+    <button id="pmX" type="button" aria-label="Dismiss">&times;</button>
+  </div>
+  <style>
+  #pmBanner{display:none;align-items:center;gap:14px;position:relative;
+    margin:0 0 16px;padding:12px 44px 12px 14px;border-radius:12px;
+    background:linear-gradient(100deg,#0d3f28,#0e5c3a 60%,#0d3f28);
+    border:1px solid rgba(212,169,66,.45);
+    box-shadow:0 6px 18px rgba(0,0,0,.28);
+    font-family:"Segoe UI",system-ui,-apple-system,sans-serif}
+  #pmBanner[data-on="1"]{display:flex}
+  #pmImg{width:64px;height:64px;flex:0 0 auto;filter:drop-shadow(0 3px 6px rgba(0,0,0,.45))}
+  #pmCopy{flex:1 1 auto;min-width:0;line-height:1.35}
+  #pmCopy strong{display:block;color:#f5f0e6;font-size:15px;letter-spacing:.01em}
+  #pmCopy span{display:block;color:#c9d8ce;font-size:12.5px;margin-top:2px}
+  #pmCta{flex:0 0 auto;background:#d4a942;color:#1c2833;text-decoration:none;
+    font-weight:700;font-size:13.5px;padding:9px 16px;border-radius:7px;white-space:nowrap;
+    transition:transform .12s,background .12s}
+  #pmCta:hover{background:#e8bf5d;transform:translateY(-1px)}
+  #pmX{position:absolute;top:6px;right:8px;background:none;border:0;cursor:pointer;
+    color:#8fa89a;font-size:20px;line-height:1;padding:2px 6px;border-radius:5px}
+  #pmX:hover{color:#f5f0e6;background:rgba(255,255,255,.08)}
+  @media(max-width:560px){
+    #pmBanner{gap:10px;padding:10px 38px 10px 10px}
+    #pmImg{width:46px;height:46px}
+    #pmCopy strong{font-size:13.5px}
+    #pmCopy span{font-size:11.5px}
+    #pmCta{padding:8px 12px;font-size:12.5px}
+  }
+  </style>
+  <script>
+  (function(){
+    var b=document.getElementById('pmBanner');
+    if(!b) return;
+    var KEY='pm-banner-dismissed-v1', hide=0;
+    try{ hide = localStorage.getItem(KEY)==='1'; }catch(e){}
+    if(!hide){ b.hidden=false; b.setAttribute('data-on','1'); }
+    document.getElementById('pmX').addEventListener('click',function(){
+      b.removeAttribute('data-on'); b.hidden=true;
+      try{ localStorage.setItem(KEY,'1'); }catch(e){}
+    });
+  })();
+  </script>
+  <!-- ===== end house ad ===== -->
+
+  <footer class="site-footer">
+    <a href="/about">About</a>
+    <a href="/privacy">Privacy</a>
+    <button type="button" class="linkish" id="feedbackLink">Feedback</button>
+  </footer>
+</div>
+
+<!-- Feedback modal (Formspree xkjnedgv) -->
+<div class="overlay" id="fbModal">
+  <div class="modal fb-modal">
+    <h3>Send feedback</h3>
+    <p>Ideas, bugs, or changes you&rsquo;d like to see in the app.</p>
+    <form id="fbForm" action="https://formspree.io/f/xkjnedgv" method="POST">
+      <label for="fbMsg">Message</label>
+      <textarea id="fbMsg" name="message" rows="5" maxlength="4000" required></textarea>
+      <label for="fbEmail">Email <span class="opt">(optional, if you want a reply)</span></label>
+      <input id="fbEmail" name="email" type="email" autocomplete="email">
+      <input type="hidden" name="_subject" value="9-Ball Scores feedback">
+      <div class="fb-status" id="fbStatus" role="status"></div>
+      <div class="btns">
+        <button type="submit" class="btn-gold" id="fbSend">Send</button>
+        <button type="button" class="btn-gray" id="fbCancel">Close</button>
+      </div>
+    </form>
   </div>
 </div>
 
@@ -649,6 +753,36 @@
   </div>
 </div>
 
+<script>
+  // Footer "Feedback" link → modal that posts to Formspree.
+  (function () {
+    var modal = document.getElementById("fbModal");
+    var form = document.getElementById("fbForm");
+    var status = document.getElementById("fbStatus");
+    var send = document.getElementById("fbSend");
+    function setStatus(msg, cls) { status.textContent = msg; status.className = "fb-status" + (cls ? " " + cls : ""); }
+    function open() { setStatus(""); modal.classList.add("show"); document.getElementById("fbMsg").focus(); }
+    function close() { modal.classList.remove("show"); }
+    document.getElementById("feedbackLink").addEventListener("click", open);
+    document.getElementById("fbCancel").addEventListener("click", close);
+    modal.addEventListener("click", function (e) { if (e.target === modal) close(); });
+    form.addEventListener("submit", async function (e) {
+      e.preventDefault();
+      send.disabled = true;
+      setStatus("Sending…");
+      try {
+        var res = await fetch(form.action, { method: "POST", body: new FormData(form), headers: { Accept: "application/json" } });
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        form.reset();
+        setStatus("Thanks! Your feedback was sent.", "ok");
+      } catch (err) {
+        setStatus("Couldn't send right now. Please try again in a moment.", "err");
+      } finally {
+        send.disabled = false;
+      }
+    });
+  })();
+</script>
 <script src="https://www.gstatic.com/firebasejs/11.6.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/11.6.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/11.6.0/firebase-firestore-compat.js"></script>
@@ -1920,7 +2054,7 @@
     var blob = new Blob([JSON.stringify(loadHistory(), null, 2)], { type: "application/json" });
     var a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
-    a.download = "apa-9ball-history.json";
+    a.download = "9ball-scores-history.json";
     a.click();
     URL.revokeObjectURL(a.href);
   }

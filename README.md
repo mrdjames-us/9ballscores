@@ -1,6 +1,6 @@
-# APA 9-Ball Scorer (`9ballscores.jamesnetworks.net`)
+# 9-Ball Scores (`www.9ballscores.com`)
 
-Mobile-friendly **APA 9-Ball Equalizer®** scorer — points, defenses, 9-on-the-snap / break-and-run, match points (20-point chart), player profiles, and local history.
+Mobile-friendly 9-ball points scorer — points, defenses, 9-on-the-snap / break-and-run, match points (20-point chart), player profiles, and local history.
 
 Copy of the local scorer in `C:\Users\mrdja\apa9ball` (single-page app; all data stays in the browser via `localStorage`).
 
@@ -8,7 +8,7 @@ Copy of the local scorer in `C:\Users\mrdja\apa9ball` (single-page app; all data
 
 | Item | Value |
 |------|--------|
-| **Custom domain** | https://9ballscores.jamesnetworks.net |
+| **Custom domain** | https://www.9ballscores.com (old `9ballscores.jamesnetworks.net` 301s here via `functions/_middleware.js`) |
 | **Pages URL** | https://9ballscores.pages.dev |
 | **Repo** | `mrdjames-us/9ballscores` |
 | **Stack** | Static HTML (no build step) |
@@ -30,7 +30,7 @@ Or open `index.html` directly in a browser.
 | **Git** | `mrdjames-us/9ballscores` → branch `main` |
 | **Build** | empty · output: `/` (static) |
 | **Pages URL** | https://9ballscores.pages.dev |
-| **Custom domain** | `9ballscores.jamesnetworks.net` |
+| **Custom domain** | `www.9ballscores.com` |
 
 ### Direct upload (break-glass)
 
@@ -73,3 +73,16 @@ The code **is** the secret — anyone with it can read/write that book. Don’t 
 ## Source
 
 Original working file: `C:\Users\mrdja\apa9ball\index.html`
+
+## Ads, privacy, about
+
+| File | Purpose |
+|------|---------|
+| `ads.txt` | AdSense seller line (`pub-6101239860944424`); `_headers` forces `text/plain` |
+| `privacy.html` → `/privacy` | Privacy policy (localStorage, Google/Firebase, sync codes, Formspree, Umami, AdSense) |
+| `about.html` → `/about` | What the app is and how to use it |
+| `pages.css` | Shared styles for the two content pages |
+
+The top ad (`#adTop` in `index.html`) is one manual AdSense unit. It stays collapsed until `data-ad-slot="REPLACE"`
+is swapped for the real numeric slot ID of the `9bs-top` unit, and collapses again whenever Google returns no fill.
+Keep **Auto ads off** in the AdSense console.
