@@ -83,6 +83,6 @@ Original working file: `C:\Users\mrdja\apa9ball\index.html`
 | `about.html` → `/about` | What the app is and how to use it |
 | `pages.css` | Shared styles for the two content pages |
 
-The top ad (`#adTop` in `index.html`) is one manual AdSense unit. It stays collapsed until `data-ad-slot="REPLACE"`
-is swapped for the real numeric slot ID of the `9bs-top` unit, and collapses again whenever Google returns no fill.
+The top ad (`#adTop` in `index.html`) is one manual AdSense unit. Slot `9037632120` (unit `9bs-top`). It collapses if `data-ad-slot` is not numeric
+and whenever Google returns no fill.
 Keep **Auto ads off** in the AdSense console.
