@@ -79,7 +79,7 @@ Original working file: `C:\Users\mrdja\apa9ball\index.html`
 | File | Purpose |
 |------|---------|
 | `ads.txt` | AdSense seller line (`pub-6101239860944424`); `_headers` forces `text/plain` |
-| `privacy.html` → `/privacy` | Privacy policy (localStorage, Google/Firebase, sync codes, Formspree, Umami, AdSense) |
+| `privacy.html` → `/privacy` | Privacy policy (localStorage, Google/Firebase, sync codes, Formspree, Cloudflare Web Analytics, Umami, AdSense) |
 | `about.html` → `/about` | What the app is and how to use it |
 | `pages.css` | Shared styles for the two content pages |
 

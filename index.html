@@ -245,18 +245,6 @@
     background: none; border: 0; padding: 0; font: inherit; font-weight: 400; margin: 0 8px; cursor: pointer;
   }
   .site-footer button.linkish:active { transform: none; }
-  .fb-modal { text-align: left; }
-  .fb-modal h3, .fb-modal > p { text-align: center; }
-  .fb-modal label { display: block; font-weight: 600; font-size: .85rem; margin: 10px 0 4px; }
-  .fb-modal .opt { font-weight: 400; color: var(--muted); }
-  .fb-modal textarea, .fb-modal input[type=email] {
-    width: 100%; padding: 10px; border: 2px solid #d5dbdb; border-radius: 8px; font: inherit; font-size: .95rem;
-  }
-  .fb-modal textarea { resize: vertical; }
-  .fb-modal .btns { margin-top: 12px; }
-  .fb-status { font-size: .85rem; min-height: 1.2em; margin-top: 8px; color: var(--muted); }
-  .fb-status.ok { color: var(--felt); font-weight: 600; }
-  .fb-status.err { color: var(--red); font-weight: 600; }
 
   .guest-check {
     display: flex; align-items: center; gap: 8px; margin-top: 8px;
@@ -647,60 +635,6 @@
     </div>
   </div>
 
-  <!-- ===== DJ Prints 3D house ad : pocket markers (injected) ===== -->
-  <div id="pmBanner" hidden>
-    <img id="pmImg" src="https://djprints3d.com/img/marker_7.png"
-         alt="Custom 8-ball pocket marker" width="72" height="72" loading="lazy">
-    <div id="pmCopy">
-      <strong>Custom 8-ball pocket markers</strong>
-      <span>Your saying, your team colors. Team of 8 with your name on it &mdash; $40.</span>
-    </div>
-    <a id="pmCta" href="https://djprints3d.com/?utm_source=9ballscores&amp;utm_medium=banner&amp;utm_campaign=house"
-       target="_blank" rel="noopener">Shop&nbsp;&rarr;</a>
-    <button id="pmX" type="button" aria-label="Dismiss">&times;</button>
-  </div>
-  <style>
-  #pmBanner{display:none;align-items:center;gap:14px;position:relative;
-    margin:0 0 16px;padding:12px 44px 12px 14px;border-radius:12px;
-    background:linear-gradient(100deg,#0d3f28,#0e5c3a 60%,#0d3f28);
-    border:1px solid rgba(212,169,66,.45);
-    box-shadow:0 6px 18px rgba(0,0,0,.28);
-    font-family:"Segoe UI",system-ui,-apple-system,sans-serif}
-  #pmBanner[data-on="1"]{display:flex}
-  #pmImg{width:64px;height:64px;flex:0 0 auto;filter:drop-shadow(0 3px 6px rgba(0,0,0,.45))}
-  #pmCopy{flex:1 1 auto;min-width:0;line-height:1.35}
-  #pmCopy strong{display:block;color:#f5f0e6;font-size:15px;letter-spacing:.01em}
-  #pmCopy span{display:block;color:#c9d8ce;font-size:12.5px;margin-top:2px}
-  #pmCta{flex:0 0 auto;background:#d4a942;color:#1c2833;text-decoration:none;
-    font-weight:700;font-size:13.5px;padding:9px 16px;border-radius:7px;white-space:nowrap;
-    transition:transform .12s,background .12s}
-  #pmCta:hover{background:#e8bf5d;transform:translateY(-1px)}
-  #pmX{position:absolute;top:6px;right:8px;background:none;border:0;cursor:pointer;
-    color:#8fa89a;font-size:20px;line-height:1;padding:2px 6px;border-radius:5px}
-  #pmX:hover{color:#f5f0e6;background:rgba(255,255,255,.08)}
-  @media(max-width:560px){
-    #pmBanner{gap:10px;padding:10px 38px 10px 10px}
-    #pmImg{width:46px;height:46px}
-    #pmCopy strong{font-size:13.5px}
-    #pmCopy span{font-size:11.5px}
-    #pmCta{padding:8px 12px;font-size:12.5px}
-  }
-  </style>
-  <script>
-  (function(){
-    var b=document.getElementById('pmBanner');
-    if(!b) return;
-    var KEY='pm-banner-dismissed-v1', hide=0;
-    try{ hide = localStorage.getItem(KEY)==='1'; }catch(e){}
-    if(!hide){ b.hidden=false; b.setAttribute('data-on','1'); }
-    document.getElementById('pmX').addEventListener('click',function(){
-      b.removeAttribute('data-on'); b.hidden=true;
-      try{ localStorage.setItem(KEY,'1'); }catch(e){}
-    });
-  })();
-  </script>
-  <!-- ===== end house ad ===== -->
-
   <footer class="site-footer">
     <a href="/about">About</a>
     <a href="/privacy">Privacy</a>
@@ -708,25 +642,169 @@
   </footer>
 </div>
 
-<!-- Feedback modal (Formspree xkjnedgv) -->
-<div class="overlay" id="fbModal">
-  <div class="modal fb-modal">
-    <h3>Send feedback</h3>
-    <p>Ideas, bugs, or changes you&rsquo;d like to see in the app.</p>
-    <form id="fbForm" action="https://formspree.io/f/xkjnedgv" method="POST">
-      <label for="fbMsg">Message</label>
-      <textarea id="fbMsg" name="message" rows="5" maxlength="4000" required></textarea>
-      <label for="fbEmail">Email <span class="opt">(optional, if you want a reply)</span></label>
-      <input id="fbEmail" name="email" type="email" autocomplete="email">
-      <input type="hidden" name="_subject" value="9-Ball Scores feedback">
-      <div class="fb-status" id="fbStatus" role="status"></div>
-      <div class="btns">
-        <button type="submit" class="btn-gold" id="fbSend">Send</button>
-        <button type="button" class="btn-gray" id="fbCancel">Close</button>
-      </div>
-    </form>
+<!-- ===== Feedback intake (opened from the footer "Feedback" link) ===== -->
+<div id="fbModal" hidden aria-hidden="true">
+  <div class="fb-sheet" role="dialog" aria-modal="true" aria-labelledby="fbTitle">
+    <button id="fbClose" type="button" aria-label="Close">&times;</button>
+    <h2 id="fbTitle">App feedback</h2>
+    <p id="fbProgress" class="fb-progress">Step 1 of 3</p>
+    <p id="fbHint" class="fb-hint">This box is only for app feedback — thanks!</p>
+
+    <div class="fb-step" data-step="1">
+      <label for="fbQ1">What were you trying to do?</label>
+      <textarea id="fbQ1" maxlength="500" rows="3" placeholder="e.g. score a match, fix a player, sync"></textarea>
+    </div>
+    <div class="fb-step" data-step="2" hidden>
+      <label for="fbQ2">What felt wrong / what would you change?</label>
+      <textarea id="fbQ2" maxlength="500" rows="3" placeholder="Short and specific helps most"></textarea>
+    </div>
+    <div class="fb-step" data-step="3" hidden>
+      <label for="fbQ3">Optional: name or email if you want a reply</label>
+      <input id="fbQ3" type="text" maxlength="120" placeholder="Skip OK">
+    </div>
+
+    <div class="fb-actions">
+      <button id="fbBack" type="button" hidden>Back</button>
+      <button id="fbNext" type="button">Next</button>
+      <button id="fbSubmit" type="button" hidden>Submit</button>
+    </div>
+    <p id="fbDone" class="fb-done" hidden></p>
   </div>
 </div>
+<style>
+#fbModal{display:none;position:fixed;inset:0;z-index:9999;background:rgba(8,12,18,.55);
+  align-items:flex-end;justify-content:center;padding:12px}
+#fbModal[data-on="1"]{display:flex}
+.fb-sheet{position:relative;width:min(100%,420px);max-height:min(88vh,560px);overflow:auto;
+  background:#121a22;color:#eef2f6;border:1px solid rgba(212,169,66,.35);border-radius:14px 14px 10px 10px;
+  padding:18px 16px 14px;box-shadow:0 18px 50px rgba(0,0,0,.45);
+  font-family:"Segoe UI",system-ui,-apple-system,sans-serif}
+#fbClose{position:absolute;top:6px;right:8px;background:none;border:0;cursor:pointer;
+  color:#9aa8b5;font-size:20px;line-height:1;padding:2px 6px;border-radius:5px}
+#fbClose:hover{color:#f5f0e6;background:rgba(255,255,255,.08)}
+#fbTitle{margin:0 28px 6px 0;font-size:1.15rem}
+.fb-progress{margin:0 0 10px;color:#d4a942;font-size:.8rem;font-weight:700;letter-spacing:.04em}
+.fb-hint{display:none;margin:0 0 10px;color:#f2c14e;font-size:.82rem}
+.fb-hint[data-on="1"]{display:block}
+.fb-step label{display:block;font-size:.88rem;margin:0 0 6px;color:#c9d4de}
+.fb-step textarea,.fb-step input{width:100%;box-sizing:border-box;border-radius:8px;border:1px solid #334455;
+  background:#0c1218;color:#eef2f6;padding:10px;font:inherit;resize:vertical}
+.fb-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:14px}
+.fb-actions button{border:0;border-radius:8px;padding:9px 14px;font-weight:700;cursor:pointer}
+#fbBack{background:#2a3644;color:#eef2f6}
+#fbNext,#fbSubmit{background:#d4a942;color:#1c2833}
+.fb-done{margin:12px 0 0;font-size:.9rem;color:#b8f0c8;line-height:1.4}
+@media(min-width:561px){
+  #fbModal{align-items:center}
+  .fb-sheet{border-radius:14px}
+}
+</style>
+<script>
+(function(){
+  var opener=document.getElementById('feedbackLink');
+  var modal=document.getElementById('fbModal');
+  if(!opener||!modal) return;
+  var step=1;
+  var hintShown=false;
+
+  function openModal(){
+    step=1; renderStep();
+    modal.hidden=false; modal.setAttribute('data-on','1'); modal.setAttribute('aria-hidden','false');
+  }
+  function closeModal(){
+    modal.removeAttribute('data-on'); modal.hidden=true; modal.setAttribute('aria-hidden','true');
+    document.getElementById('fbDone').hidden=true;
+    document.getElementById('fbHint').removeAttribute('data-on');
+  }
+  function renderStep(){
+    document.getElementById('fbProgress').textContent='Step '+step+' of 3';
+    [].forEach.call(document.querySelectorAll('.fb-step'), function(el){
+      el.hidden = String(el.getAttribute('data-step')) !== String(step);
+    });
+    document.getElementById('fbBack').hidden = step===1;
+    document.getElementById('fbNext').hidden = step===3;
+    document.getElementById('fbSubmit').hidden = step!==3;
+  }
+  function val(id){ return (document.getElementById(id).value||'').trim(); }
+  function softRedirectIfNeeded(text){
+    // Soft intake-only nudge if field looks like a novel / spam dump
+    if(text.length>=480){
+      var h=document.getElementById('fbHint');
+      h.setAttribute('data-on','1');
+      hintShown=true;
+    }
+  }
+  function buildSummary(){
+    var host=location.host||'';
+    var ua=(navigator.userAgent||'').slice(0,140);
+    var ts=new Date().toLocaleString();
+    return [
+      '9ballscores feedback',
+      'Time: '+ts,
+      'Host: '+host,
+      '',
+      '1) Trying to do:',
+      val('fbQ1')||'(blank)',
+      '',
+      '2) Wrong / change:',
+      val('fbQ2')||'(blank)',
+      '',
+      '3) Contact (optional):',
+      val('fbQ3')||'(skipped)',
+      '',
+      'UA: '+ua
+    ].join('\n');
+  }
+  var FORMSPREE='https://formspree.io/f/xkjnedgv';
+  var sending=false;
+  function submit(){
+    if(sending) return;
+    softRedirectIfNeeded(val('fbQ1'));
+    softRedirectIfNeeded(val('fbQ2'));
+    var summary=buildSummary();
+    var done=document.getElementById('fbDone');
+    var btn=document.getElementById('fbSubmit');
+    sending=true;
+    if(btn){ btn.disabled=true; btn.textContent='Sending…'; }
+    done.hidden=false;
+    done.style.color='#c9d4de';
+    done.textContent='Sending…';
+    fetch(FORMSPREE,{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Accept':'application/json'},
+      body:JSON.stringify({
+        _subject:'9ballscores feedback',
+        message:summary,
+        trying_to_do:val('fbQ1')||'(blank)',
+        felt_wrong:val('fbQ2')||'(blank)',
+        contact:val('fbQ3')||'(skipped)',
+        host:location.host||'',
+        user_agent:(navigator.userAgent||'').slice(0,140)
+      })
+    }).then(function(res){
+      if(!res.ok) throw new Error('HTTP '+res.status);
+      done.style.color='#b8f0c8';
+      done.textContent='Thanks — got it.';
+      setTimeout(closeModal,900);
+    }).catch(function(){
+      done.style.color='#f2c14e';
+      done.textContent="Couldn't send — try again";
+      if(btn){ btn.disabled=false; btn.textContent='Submit'; }
+    }).finally(function(){ sending=false; });
+  }
+  opener.addEventListener('click', openModal);
+  document.getElementById('fbClose').addEventListener('click', closeModal);
+  modal.addEventListener('click', function(e){ if(e.target===modal) closeModal(); });
+  document.getElementById('fbBack').addEventListener('click', function(){ if(step>1){ step--; renderStep(); } });
+  document.getElementById('fbNext').addEventListener('click', function(){
+    if(step===1) softRedirectIfNeeded(val('fbQ1'));
+    if(step===2) softRedirectIfNeeded(val('fbQ2'));
+    if(step<3){ step++; renderStep(); }
+  });
+  document.getElementById('fbSubmit').addEventListener('click', submit);
+})();
+</script>
+<!-- ===== end feedback intake ===== -->
 
 <!-- 9-ball end-of-rack modal: snap vs early, or snap vs B&R -->
 <div class="overlay" id="nineOverlay">
@@ -753,36 +831,6 @@
   </div>
 </div>
 
-<script>
-  // Footer "Feedback" link → modal that posts to Formspree.
-  (function () {
-    var modal = document.getElementById("fbModal");
-    var form = document.getElementById("fbForm");
-    var status = document.getElementById("fbStatus");
-    var send = document.getElementById("fbSend");
-    function setStatus(msg, cls) { status.textContent = msg; status.className = "fb-status" + (cls ? " " + cls : ""); }
-    function open() { setStatus(""); modal.classList.add("show"); document.getElementById("fbMsg").focus(); }
-    function close() { modal.classList.remove("show"); }
-    document.getElementById("feedbackLink").addEventListener("click", open);
-    document.getElementById("fbCancel").addEventListener("click", close);
-    modal.addEventListener("click", function (e) { if (e.target === modal) close(); });
-    form.addEventListener("submit", async function (e) {
-      e.preventDefault();
-      send.disabled = true;
-      setStatus("Sending…");
-      try {
-        var res = await fetch(form.action, { method: "POST", body: new FormData(form), headers: { Accept: "application/json" } });
-        if (!res.ok) throw new Error("HTTP " + res.status);
-        form.reset();
-        setStatus("Thanks! Your feedback was sent.", "ok");
-      } catch (err) {
-        setStatus("Couldn't send right now. Please try again in a moment.", "err");
-      } finally {
-        send.disabled = false;
-      }
-    });
-  })();
-</script>
 <script src="https://www.gstatic.com/firebasejs/11.6.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/11.6.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/11.6.0/firebase-firestore-compat.js"></script>
